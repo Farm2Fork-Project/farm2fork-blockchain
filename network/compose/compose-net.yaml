@@ -37,6 +37,10 @@ services:
       - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
       - CORE_PEER_LOCALMSPID=Farm2ForkMSP
       - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
       - CORE_LEDGER_STATE_STATEDATABASE=goleveldb
     ports:
       - "7051:7051"
@@ -64,6 +68,7 @@ services:
       - ORDERER_CA=/etc/hyperledger/fabric/ordererOrganizations/farm2fork.com/orderers/orderer.farm2fork.com/tls/ca.crt
       - ORDERER_ADMIN_TLS_SIGN_CERT=/etc/hyperledger/fabric/ordererOrganizations/farm2fork.com/orderers/orderer.farm2fork.com/tls/server.crt
       - ORDERER_ADMIN_TLS_PRIVATE_KEY=/etc/hyperledger/fabric/ordererOrganizations/farm2fork.com/orderers/orderer.farm2fork.com/tls/server.key
+      - CHANNEL_BLOCK_FILE=/opt/farm2fork/channel-artifacts/farm2forkchannel.block
     command: /bin/bash
     depends_on:
       - orderer.farm2fork.com
