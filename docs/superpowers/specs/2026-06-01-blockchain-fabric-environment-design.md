@@ -2,7 +2,7 @@
 
 Date: 2026-06-01
 Repo: `farm2fork-blockchain`
-Status: Approved for review
+Status: Approved for implementation
 
 ## 1. Goal
 
@@ -36,19 +36,15 @@ Explicitly excluded from this phase:
 
 ## 3. Version Strategy
 
-The environment should target the latest currently supported and compatible Hyperledger Fabric release line, with configuration verified against current official documentation at implementation time.
+The environment must explicitly pin Hyperledger Fabric `v3.1.4` and Go `1.22.x`.
 
 Versioning rules:
 
-- Use current stable Fabric `v3.x` container images and binaries
+- Use Hyperledger Fabric `v3.1.4` container images and binaries
 - Do not use `Solo` ordering because support was removed in Fabric `v3.0`
 - Use a single-node `Raft` orderer for the local dev network
-- Use current compatible Go and chaincode dependencies for the selected Fabric release
+- Use Go `1.22.x` for chaincode development and local tooling
 - Pin versions in scripts and docs so the environment is reproducible
-
-Implementation note:
-
-- If the official `fabric-samples` tooling lags behind the newest release in a way that breaks local setup, prefer the newest stable combination that is documented and working together, and record that exact version pair in the repo README
 
 ## 4. Architecture
 
@@ -171,7 +167,7 @@ The first-pass chaincode surface should include:
 - `RecordPayment`
 - `RecordSupplyChainEvent`
 - `GetTransactionByReferenceId`
-- `GetAllTransactionsForReferenceId` or equivalent history/query method
+- `GetHistoryForKey`
 - `HealthCheck` or small read-only helper if useful for smoke verification
 
 Required transaction behavior:
@@ -210,8 +206,14 @@ The query path must be sufficient to support:
 
 - lookup of a stored payment transaction after write
 - lookup of a stored supply chain event after write
-- retrieval of all events tied to a product or shipment reference
+- retrieval of a key's full history via `GetHistoryForKey()`
 - verification that the exact master-context payload field names are preserved
+
+History-query constraint:
+
+- use Fabric's built-in `GetHistoryForKey()` for the history view
+- do not add CouchDB in this pass
+- do not design Mango-query or rich-query dependencies into the first-pass chaincode
 
 ## 7. Operational Scripts
 
@@ -263,7 +265,7 @@ The smoke test should:
    - `actorRole`
    - `timestamp`
 7. Query the resulting record and verify the supply chain payload fields are present exactly as defined
-8. Run a reference-based query or history query to prove the write path and read path are both functioning
+8. Run a history query using `GetHistoryForKey()` to prove the write path and read path are both functioning
 9. Exit non-zero if any assertion fails
 
 ### 8.3 Output Expectations
@@ -299,7 +301,7 @@ Important limitation:
 The repo documentation should include:
 
 - prerequisites
-- exact supported Fabric version and Go version
+- exact pinned Fabric version `3.1.4` and Go version `1.22.x`
 - how to bootstrap the network
 - how to deploy chaincode
 - how to run the smoke test
@@ -320,6 +322,7 @@ Deferred until later iterations:
 - mapping committed Fabric metadata back into MongoDB persistence
 - retry orchestration matching backend `retryCount` logic
 - workspace-level top-level Compose integration across all repos
+- CouchDB-backed rich queries
 
 ## 12. Risks
 
@@ -329,6 +332,7 @@ Known first-pass risks:
 - Docker environment differences on local machines
 - chaincode lifecycle command complexity
 - accidental drift from the master-context field names
+- misunderstanding key-history support and over-designing query infrastructure
 
 Mitigations:
 
@@ -336,6 +340,7 @@ Mitigations:
 - pin and document exact versions
 - keep the network topology minimal
 - add a strict smoke test that validates exact field names and round-trip behavior
+- rely on `GetHistoryForKey()` instead of introducing CouchDB or rich-query setup
 
 ## 13. Acceptance Criteria
 
