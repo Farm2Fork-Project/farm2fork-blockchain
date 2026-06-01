@@ -57,19 +57,19 @@ services:
     working_dir: /opt/farm2fork
     environment:
       - FABRIC_CFG_PATH=/etc/hyperledger/fabric/config
-      - CHANNEL_NAME=farm2forkchannel
+      - CHANNEL_NAME=${CHANNEL_NAME:-farm2forkchannel}
       - CORE_PEER_ID=cli.farm2fork.com
       - CORE_PEER_ADDRESS=peer0.farm2fork.com:7051
       - CORE_PEER_LOCALMSPID=Farm2ForkMSP
       - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/peerOrganizations/farm2fork.com/users/Admin@farm2fork.com/msp
       - CORE_PEER_TLS_ENABLED=true
       - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/peerOrganizations/farm2fork.com/peers/peer0.farm2fork.com/tls/ca.crt
-      - ORDERER_ADMIN_ADDRESS=orderer.farm2fork.com:9443
+      - ORDERER_ADMIN_ADDRESS=${ORDERER_ADMIN_ADDRESS:-orderer.farm2fork.com:9443}
       - ORDERER_CA=/etc/hyperledger/fabric/ordererOrganizations/farm2fork.com/orderers/orderer.farm2fork.com/tls/ca.crt
-      - ORDERER_ADMIN_TLS_SIGN_CERT=/etc/hyperledger/fabric/ordererOrganizations/farm2fork.com/orderers/orderer.farm2fork.com/tls/server.crt
-      - ORDERER_ADMIN_TLS_PRIVATE_KEY=/etc/hyperledger/fabric/ordererOrganizations/farm2fork.com/orderers/orderer.farm2fork.com/tls/server.key
-      - CHANNEL_BLOCK_FILE=/opt/farm2fork/channel-artifacts/farm2forkchannel.block
-    command: /bin/bash
+      - ORDERER_ADMIN_TLS_SIGN_CERT=/etc/hyperledger/fabric/ordererOrganizations/farm2fork.com/users/Admin@farm2fork.com/tls/client.crt
+      - ORDERER_ADMIN_TLS_PRIVATE_KEY=/etc/hyperledger/fabric/ordererOrganizations/farm2fork.com/users/Admin@farm2fork.com/tls/client.key
+      - CHANNEL_BLOCK_FILE=/opt/farm2fork/channel-artifacts/${CHANNEL_NAME:-farm2forkchannel}.block
+    command: sleep infinity
     depends_on:
       - orderer.farm2fork.com
       - peer0.farm2fork.com

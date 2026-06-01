@@ -32,7 +32,7 @@ retry() {
 join_orderer_channel() {
   run_cli osnadmin channel list \
     --channelID "${CHANNEL_NAME}" \
-    -o "${ORDERER_NAME}:${ORDERER_ADMIN_PORT}" \
+    -o "${ORDERER_ADMIN_ADDRESS}" \
     --ca-file "${CONTAINER_ORDERER_CA}" \
     --client-cert "${CONTAINER_ORDERER_ADMIN_TLS_SIGN_CERT}" \
     --client-key "${CONTAINER_ORDERER_ADMIN_TLS_PRIVATE_KEY}" >/dev/null 2>&1 && return 0
@@ -40,7 +40,7 @@ join_orderer_channel() {
   run_cli osnadmin channel join \
     --channelID "${CHANNEL_NAME}" \
     --config-block "${CONTAINER_CHANNEL_BLOCK_FILE}" \
-    -o "${ORDERER_NAME}:${ORDERER_ADMIN_PORT}" \
+    -o "${ORDERER_ADMIN_ADDRESS}" \
     --ca-file "${CONTAINER_ORDERER_CA}" \
     --client-cert "${CONTAINER_ORDERER_ADMIN_TLS_SIGN_CERT}" \
     --client-key "${CONTAINER_ORDERER_ADMIN_TLS_PRIVATE_KEY}"

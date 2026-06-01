@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-source "$(cd "$(dirname "$0")" && pwd)/env.sh"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "${SCRIPT_DIR}/env.sh"
 
 mkdir -p "${ORGANIZATIONS_DIR}" "${CHANNEL_ARTIFACTS_DIR}"
 
-cryptogen generate --config="${NETWORK_DIR}/config/crypto-config.yaml" --output="${ORGANIZATIONS_DIR}"
-configtxgen -profile Farm2ForkChannel -channelID "${CHANNEL_NAME}" -outputBlock "${CHANNEL_BLOCK_FILE}"
+docker compose -f "${COMPOSE_FILE}" run --rm --no-deps "${CLI_SERVICE}" bash -lc "
+  set -euo pipefail
+  cryptogen generate --config=/etc/hyperledger/fabric/config/crypto-config.yaml --output=/etc/hyperledger/fabric
+  configtxgen -profile Farm2ForkChannel -channelID '${CHANNEL_NAME}' -outputBlock '${CONTAINER_CHANNEL_BLOCK_FILE}'
+"
