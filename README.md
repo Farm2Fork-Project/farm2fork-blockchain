@@ -5,7 +5,8 @@ Farm2Fork local Hyperledger Fabric environment.
 ## Versions
 
 - Hyperledger Fabric: 3.1.4
-- Go: 1.22.x
+- Go support line: 1.22.x
+- Default pinned Go toolchain: 1.22.12 (see `.env.example`)
 
 ## Network defaults
 
@@ -14,7 +15,9 @@ Farm2Fork local Hyperledger Fabric environment.
 - Peer: `peer0.farm2fork.com`
 - History query: `GetHistoryForKey()`
 
-## Quick start
+## Intended full flow
+
+The commands below are the target end-to-end flow for this repository once later tasks add the referenced scripts. They are kept here to pin the expected operator workflow without implying that the scripts already exist in this task.
 
 ```bash
 cp .env.example .env
