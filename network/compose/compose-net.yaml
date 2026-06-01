@@ -1,0 +1,36 @@
+services:
+  orderer.farm2fork.com:
+    image: hyperledger/fabric-orderer:${FABRIC_VERSION}
+    container_name: orderer.farm2fork.com
+    environment:
+      - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+      - ORDERER_GENERAL_LISTENPORT=7050
+      - ORDERER_GENERAL_LOCALMSPID=OrdererMSP
+      - ORDERER_GENERAL_LOCALMSPDIR=/var/hyperledger/orderer/msp
+      - ORDERER_GENERAL_BOOTSTRAPMETHOD=none
+      - ORDERER_CHANNELPARTICIPATION_ENABLED=true
+      - ORDERER_ADMIN_TLS_ENABLED=true
+      - ORDERER_ADMIN_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_ADMIN_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_ADMIN_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+    ports:
+      - "7050:7050"
+    volumes:
+      - ../organizations/ordererOrganizations/farm2fork.com/orderers/orderer.farm2fork.com/msp:/var/hyperledger/orderer/msp
+      - ../organizations/ordererOrganizations/farm2fork.com/orderers/orderer.farm2fork.com/tls:/var/hyperledger/orderer/tls
+
+  peer0.farm2fork.com:
+    image: hyperledger/fabric-peer:${FABRIC_VERSION}
+    container_name: peer0.farm2fork.com
+    environment:
+      - CORE_PEER_ID=peer0.farm2fork.com
+      - CORE_PEER_ADDRESS=peer0.farm2fork.com:7051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
+      - CORE_PEER_LOCALMSPID=Farm2ForkMSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/msp
+      - CORE_LEDGER_STATE_STATEDATABASE=goleveldb
+    ports:
+      - "7051:7051"
+    volumes:
+      - ../organizations/peerOrganizations/farm2fork.com/peers/peer0.farm2fork.com/msp:/etc/hyperledger/fabric/msp
+      - ../organizations/peerOrganizations/farm2fork.com/peers/peer0.farm2fork.com/tls:/etc/hyperledger/fabric/tls

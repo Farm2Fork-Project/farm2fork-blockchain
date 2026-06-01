@@ -1,0 +1,14 @@
+OrdererOrgs:
+  - Name: Orderer
+    Domain: farm2fork.com
+    Specs:
+      - Hostname: orderer
+
+PeerOrgs:
+  - Name: Farm2Fork
+    Domain: farm2fork.com
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+    Users:
+      Count: 1
