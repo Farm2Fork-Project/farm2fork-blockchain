@@ -1,26 +1,34 @@
 services:
   orderer.farm2fork.com:
-    image: hyperledger/fabric-orderer:${FABRIC_VERSION}
+    image: hyperledger/fabric-orderer:${FABRIC_VERSION:-3.1.4}
     container_name: orderer.farm2fork.com
     environment:
       - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
       - ORDERER_GENERAL_LISTENPORT=7050
       - ORDERER_GENERAL_LOCALMSPID=OrdererMSP
       - ORDERER_GENERAL_LOCALMSPDIR=/var/hyperledger/orderer/msp
+      - ORDERER_GENERAL_TLS_ENABLED=true
+      - ORDERER_GENERAL_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
       - ORDERER_GENERAL_BOOTSTRAPMETHOD=none
       - ORDERER_CHANNELPARTICIPATION_ENABLED=true
+      - ORDERER_ADMIN_LISTENADDRESS=0.0.0.0:9443
       - ORDERER_ADMIN_TLS_ENABLED=true
+      - ORDERER_ADMIN_TLS_CLIENTAUTHREQUIRED=true
       - ORDERER_ADMIN_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
       - ORDERER_ADMIN_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
       - ORDERER_ADMIN_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_ADMIN_TLS_CLIENTROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
     ports:
       - "7050:7050"
+      - "9443:9443"
     volumes:
       - ../organizations/ordererOrganizations/farm2fork.com/orderers/orderer.farm2fork.com/msp:/var/hyperledger/orderer/msp
       - ../organizations/ordererOrganizations/farm2fork.com/orderers/orderer.farm2fork.com/tls:/var/hyperledger/orderer/tls
 
   peer0.farm2fork.com:
-    image: hyperledger/fabric-peer:${FABRIC_VERSION}
+    image: hyperledger/fabric-peer:${FABRIC_VERSION:-3.1.4}
     container_name: peer0.farm2fork.com
     environment:
       - CORE_PEER_ID=peer0.farm2fork.com

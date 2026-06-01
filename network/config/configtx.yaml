@@ -3,10 +3,35 @@ Organizations:
     Name: OrdererMSP
     ID: OrdererMSP
     MSPDir: ../organizations/ordererOrganizations/farm2fork.com/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('OrdererMSP.member')"
+      Writers:
+        Type: Signature
+        Rule: "OR('OrdererMSP.member')"
+      Admins:
+        Type: Signature
+        Rule: "OR('OrdererMSP.admin')"
+    OrdererEndpoints:
+      - orderer.farm2fork.com:7050
   - &Farm2ForkMSP
     Name: Farm2ForkMSP
     ID: Farm2ForkMSP
     MSPDir: ../organizations/peerOrganizations/farm2fork.com/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('Farm2ForkMSP.admin', 'Farm2ForkMSP.peer', 'Farm2ForkMSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('Farm2ForkMSP.admin', 'Farm2ForkMSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('Farm2ForkMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('Farm2ForkMSP.peer')"
     AnchorPeers:
       - Host: peer0.farm2fork.com
         Port: 7051
@@ -19,25 +44,76 @@ Capabilities:
   Application: &ApplicationCapabilities
     V3_0: true
 
+Application: &ApplicationDefaults
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+    LifecycleEndorsement:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Endorsement"
+    Endorsement:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Endorsement"
+
+Orderer: &OrdererDefaults
+  BatchTimeout: 2s
+  BatchSize:
+    MaxMessageCount: 10
+    AbsoluteMaxBytes: 99 MB
+    PreferredMaxBytes: 512 KB
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+    BlockValidation:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+
+Channel: &ChannelDefaults
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+
 Profiles:
-  Farm2ForkGenesis:
+  Farm2ForkChannel:
+    <<: *ChannelDefaults
     Orderer:
+      <<: *OrdererDefaults
       OrdererType: etcdraft
       Addresses:
         - orderer.farm2fork.com:7050
-      Organizations:
-        - *OrdererOrg
       EtcdRaft:
         Consenters:
           - Host: orderer.farm2fork.com
             Port: 7050
             ClientTLSCert: ../organizations/ordererOrganizations/farm2fork.com/orderers/orderer.farm2fork.com/tls/server.crt
             ServerTLSCert: ../organizations/ordererOrganizations/farm2fork.com/orderers/orderer.farm2fork.com/tls/server.crt
+      Organizations:
+        - *OrdererOrg
       Capabilities: *OrdererCapabilities
-    Capabilities: *ChannelCapabilities
-  Farm2ForkChannel:
-    Consortium: SampleConsortium
     Application:
+      <<: *ApplicationDefaults
       Organizations:
         - *Farm2ForkMSP
       Capabilities: *ApplicationCapabilities
+    Capabilities: *ChannelCapabilities

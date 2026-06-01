@@ -3,6 +3,7 @@ set -euo pipefail
 
 source "$(cd "$(dirname "$0")" && pwd)/env.sh"
 
-cryptogen generate --config="${ROOT_DIR}/network/config/crypto-config.yaml" --output="${ROOT_DIR}/network/organizations"
-configtxgen -profile Farm2ForkGenesis -channelID system-channel -outputBlock "${ROOT_DIR}/network/system-genesis-block/genesis.block"
-configtxgen -profile Farm2ForkChannel -outputCreateChannelTx "${ROOT_DIR}/network/channel-artifacts/${CHANNEL_NAME}.tx" -channelID "${CHANNEL_NAME}"
+mkdir -p "${ORGANIZATIONS_DIR}" "${CHANNEL_ARTIFACTS_DIR}"
+
+cryptogen generate --config="${NETWORK_DIR}/config/crypto-config.yaml" --output="${ORGANIZATIONS_DIR}"
+configtxgen -profile Farm2ForkChannel -channelID "${CHANNEL_NAME}" -outputBlock "${CHANNEL_BLOCK_FILE}"
