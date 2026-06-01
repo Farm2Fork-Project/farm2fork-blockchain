@@ -10,6 +10,10 @@ compose() {
   docker compose -f "${COMPOSE_FILE}" "$@"
 }
 
+cleanup_generated_state() {
+  rm -rf "${ORGANIZATIONS_DIR}" "${CHANNEL_ARTIFACTS_DIR}"
+}
+
 run_cli() {
   compose exec -T "${CLI_SERVICE}" "$@"
 }
@@ -69,11 +73,15 @@ case "${ACTION}" in
   down)
     compose down -v
     ;;
+  reset)
+    compose down -v --remove-orphans
+    cleanup_generated_state
+    ;;
   config)
     compose config
     ;;
   *)
-    echo "Usage: $0 {generate|up|down|config}" >&2
+    echo "Usage: $0 {generate|up|down|reset|config}" >&2
     exit 1
     ;;
 esac
