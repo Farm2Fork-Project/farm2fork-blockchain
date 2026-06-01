@@ -42,3 +42,31 @@ services:
     volumes:
       - ../organizations/peerOrganizations/farm2fork.com/peers/peer0.farm2fork.com/msp:/etc/hyperledger/fabric/msp
       - ../organizations/peerOrganizations/farm2fork.com/peers/peer0.farm2fork.com/tls:/etc/hyperledger/fabric/tls
+
+  cli.farm2fork.com:
+    image: hyperledger/fabric-tools:${FABRIC_VERSION:-3.1.4}
+    container_name: cli.farm2fork.com
+    tty: true
+    stdin_open: true
+    working_dir: /opt/farm2fork
+    environment:
+      - FABRIC_CFG_PATH=/etc/hyperledger/fabric/config
+      - CHANNEL_NAME=farm2forkchannel
+      - CORE_PEER_ID=cli.farm2fork.com
+      - CORE_PEER_ADDRESS=peer0.farm2fork.com:7051
+      - CORE_PEER_LOCALMSPID=Farm2ForkMSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/peerOrganizations/farm2fork.com/users/Admin@farm2fork.com/msp
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/peerOrganizations/farm2fork.com/peers/peer0.farm2fork.com/tls/ca.crt
+      - ORDERER_ADMIN_ADDRESS=orderer.farm2fork.com:9443
+      - ORDERER_CA=/etc/hyperledger/fabric/ordererOrganizations/farm2fork.com/orderers/orderer.farm2fork.com/tls/ca.crt
+      - ORDERER_ADMIN_TLS_SIGN_CERT=/etc/hyperledger/fabric/ordererOrganizations/farm2fork.com/orderers/orderer.farm2fork.com/tls/server.crt
+      - ORDERER_ADMIN_TLS_PRIVATE_KEY=/etc/hyperledger/fabric/ordererOrganizations/farm2fork.com/orderers/orderer.farm2fork.com/tls/server.key
+    command: /bin/bash
+    depends_on:
+      - orderer.farm2fork.com
+      - peer0.farm2fork.com
+    volumes:
+      - ../config:/etc/hyperledger/fabric/config
+      - ../organizations:/etc/hyperledger/fabric
+      - ../channel-artifacts:/opt/farm2fork/channel-artifacts
