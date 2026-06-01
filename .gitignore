@@ -1,0 +1,7 @@
+.env
+network/channel-artifacts/
+network/organizations/peerOrganizations/
+network/organizations/ordererOrganizations/
+network/system-genesis-block/
+*.tar.gz
+*.log
