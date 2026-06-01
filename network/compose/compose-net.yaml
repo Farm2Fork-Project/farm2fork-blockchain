@@ -26,6 +26,7 @@ services:
     volumes:
       - ../organizations/ordererOrganizations/farm2fork.com/orderers/orderer.farm2fork.com/msp:/var/hyperledger/orderer/msp
       - ../organizations/ordererOrganizations/farm2fork.com/orderers/orderer.farm2fork.com/tls:/var/hyperledger/orderer/tls
+      - orderer.farm2fork.com:/var/hyperledger/production/orderer
 
   peer0.farm2fork.com:
     image: hyperledger/fabric-peer:${FABRIC_VERSION:-3.1.4}
@@ -42,6 +43,7 @@ services:
     volumes:
       - ../organizations/peerOrganizations/farm2fork.com/peers/peer0.farm2fork.com/msp:/etc/hyperledger/fabric/msp
       - ../organizations/peerOrganizations/farm2fork.com/peers/peer0.farm2fork.com/tls:/etc/hyperledger/fabric/tls
+      - peer0.farm2fork.com:/var/hyperledger/production
 
   cli.farm2fork.com:
     image: hyperledger/fabric-tools:${FABRIC_VERSION:-3.1.4}
@@ -70,3 +72,7 @@ services:
       - ../config:/etc/hyperledger/fabric/config
       - ../organizations:/etc/hyperledger/fabric
       - ../channel-artifacts:/opt/farm2fork/channel-artifacts
+
+volumes:
+  orderer.farm2fork.com:
+  peer0.farm2fork.com:
