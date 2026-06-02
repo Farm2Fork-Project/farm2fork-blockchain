@@ -21,8 +21,8 @@ type SupplyChainPayload struct {
 }
 
 type Payload struct {
-	Payment     *PaymentPayload     `json:"payment,omitempty"`
-	SupplyChain *SupplyChainPayload `json:"supplyChain,omitempty"`
+	Payment     *PaymentPayload     `json:"payment"`
+	SupplyChain *SupplyChainPayload `json:"supplyChain"`
 }
 
 type BlockchainTransaction struct {

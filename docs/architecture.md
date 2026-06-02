@@ -3,8 +3,8 @@
 ## Pinned platform constraints
 
 - Hyperledger Fabric version: 3.1.4
-- Go support line: 1.22.x
-- Default pinned Go version: 1.22.12
+- Go support line: 1.23.x
+- Default pinned Go version: 1.23.0
 - Channel name: farm2forkchannel
 - Orderer: orderer.farm2fork.com
 - Peer: peer0.farm2fork.com

@@ -36,14 +36,14 @@ Explicitly excluded from this phase:
 
 ## 3. Version Strategy
 
-The environment must explicitly pin Hyperledger Fabric `v3.1.4` and Go `1.22.x`.
+The environment must explicitly pin Hyperledger Fabric `v3.1.4` and Go `1.23.x`.
 
 Versioning rules:
 
 - Use Hyperledger Fabric `v3.1.4` container images and binaries
 - Do not use `Solo` ordering because support was removed in Fabric `v3.0`
 - Use a single-node `Raft` orderer for the local dev network
-- Use Go `1.22.x` for chaincode development and local tooling
+- Use Go `1.23.x` for chaincode development and local tooling
 - Pin versions in scripts and docs so the environment is reproducible
 
 ## 4. Architecture
@@ -301,7 +301,7 @@ Important limitation:
 The repo documentation should include:
 
 - prerequisites
-- exact pinned Fabric version `3.1.4` and Go version `1.22.x`
+- exact pinned Fabric version `3.1.4` and Go version `1.23.x`
 - how to bootstrap the network
 - how to deploy chaincode
 - how to run the smoke test

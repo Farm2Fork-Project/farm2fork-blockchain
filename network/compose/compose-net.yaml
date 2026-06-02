@@ -1,6 +1,6 @@
 services:
   orderer.farm2fork.com:
-    image: hyperledger/fabric-orderer:${FABRIC_VERSION:-3.1.4}
+    image: ghcr.io/hyperledger/fabric-orderer:${FABRIC_VERSION:-3.1.4}
     container_name: orderer.farm2fork.com
     environment:
       - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
@@ -26,10 +26,11 @@ services:
     volumes:
       - ../organizations/ordererOrganizations/farm2fork.com/orderers/orderer.farm2fork.com/msp:/var/hyperledger/orderer/msp
       - ../organizations/ordererOrganizations/farm2fork.com/orderers/orderer.farm2fork.com/tls:/var/hyperledger/orderer/tls
+      - ../organizations/ordererOrganizations/farm2fork.com/users/Admin@farm2fork.com/tls:/var/hyperledger/admin/tls
       - orderer.farm2fork.com:/var/hyperledger/production/orderer
 
   peer0.farm2fork.com:
-    image: hyperledger/fabric-peer:${FABRIC_VERSION:-3.1.4}
+    image: ghcr.io/hyperledger/fabric-peer:${FABRIC_VERSION:-3.1.4}
     container_name: peer0.farm2fork.com
     environment:
       - CORE_PEER_ID=peer0.farm2fork.com
@@ -42,42 +43,17 @@ services:
       - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
       - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
       - CORE_LEDGER_STATE_STATEDATABASE=goleveldb
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=compose_default
     ports:
       - "7051:7051"
     volumes:
       - ../organizations/peerOrganizations/farm2fork.com/peers/peer0.farm2fork.com/msp:/etc/hyperledger/fabric/msp
       - ../organizations/peerOrganizations/farm2fork.com/peers/peer0.farm2fork.com/tls:/etc/hyperledger/fabric/tls
+      - ../organizations/peerOrganizations/farm2fork.com/users/Admin@farm2fork.com/msp:/etc/hyperledger/fabric/admin/msp
+      - ../organizations/ordererOrganizations/farm2fork.com/orderers/orderer.farm2fork.com/tls:/etc/hyperledger/fabric/orderer/tls:ro
+      - ../channel-artifacts:/etc/hyperledger/fabric/channel-artifacts
+      - /var/run/docker.sock:/var/run/docker.sock
       - peer0.farm2fork.com:/var/hyperledger/production
-
-  cli.farm2fork.com:
-    image: hyperledger/fabric-tools:${FABRIC_VERSION:-3.1.4}
-    container_name: cli.farm2fork.com
-    tty: true
-    stdin_open: true
-    working_dir: /opt/farm2fork
-    environment:
-      - FABRIC_CFG_PATH=/etc/hyperledger/fabric/config
-      - CHANNEL_NAME=${CHANNEL_NAME:-farm2forkchannel}
-      - CORE_PEER_ID=cli.farm2fork.com
-      - CORE_PEER_ADDRESS=peer0.farm2fork.com:7051
-      - CORE_PEER_LOCALMSPID=Farm2ForkMSP
-      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/fabric/peerOrganizations/farm2fork.com/users/Admin@farm2fork.com/msp
-      - CORE_PEER_TLS_ENABLED=true
-      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/peerOrganizations/farm2fork.com/peers/peer0.farm2fork.com/tls/ca.crt
-      - ORDERER_ADMIN_ADDRESS=${ORDERER_ADMIN_ADDRESS:-orderer.farm2fork.com:9443}
-      - ORDERER_CA=/etc/hyperledger/fabric/ordererOrganizations/farm2fork.com/orderers/orderer.farm2fork.com/tls/ca.crt
-      - ORDERER_ADMIN_TLS_SIGN_CERT=/etc/hyperledger/fabric/ordererOrganizations/farm2fork.com/users/Admin@farm2fork.com/tls/client.crt
-      - ORDERER_ADMIN_TLS_PRIVATE_KEY=/etc/hyperledger/fabric/ordererOrganizations/farm2fork.com/users/Admin@farm2fork.com/tls/client.key
-      - CHANNEL_BLOCK_FILE=/opt/farm2fork/channel-artifacts/${CHANNEL_NAME:-farm2forkchannel}.block
-    command: sleep infinity
-    depends_on:
-      - orderer.farm2fork.com
-      - peer0.farm2fork.com
-    volumes:
-      - ../config:/etc/hyperledger/fabric/config
-      - ../organizations:/etc/hyperledger/fabric
-      - ../channel-artifacts:/opt/farm2fork/channel-artifacts
-      - ../chaincode:/opt/farm2fork/chaincode
 
 volumes:
   orderer.farm2fork.com:

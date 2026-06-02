@@ -4,14 +4,16 @@ import (
 	"encoding/json"
 	"errors"
 
-	contractapi "github.com/hyperledger/fabric-contract-api-go/v2/contractapi"
+	contractapi "github.com/hyperledger/fabric-contract-api-go/contractapi"
 
 	"farm2fork-blockchain/chaincode/farm2fork-chaincode/internal/model"
 )
 
 var errTransactionNotFound = errors.New("transaction not found")
 
-type Farm2ForkContract struct{}
+type Farm2ForkContract struct {
+	contractapi.Contract
+}
 
 func requireTransactionContext(ctx contractapi.TransactionContextInterface) error {
 	if ctx == nil || ctx.GetStub() == nil {
@@ -104,9 +106,9 @@ func (c *Farm2ForkContract) RecordPayment(
 	currency string,
 	gateway string,
 	paidAt string,
-) (*model.BlockchainTransaction, error) {
+) (string, error) {
 	if err := requireTransactionContext(ctx); err != nil {
-		return nil, err
+		return "", err
 	}
 
 	tx := buildBaseTransaction(ctx, referenceID, "Payment", "payment", paidAt)
@@ -121,10 +123,15 @@ func (c *Farm2ForkContract) RecordPayment(
 	}
 
 	if err := persistTransaction(ctx, referenceID, tx); err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return tx, nil
+	bytes, err := json.Marshal(tx)
+	if err != nil {
+		return "", err
+	}
+
+	return string(bytes), nil
 }
 
 func (c *Farm2ForkContract) RecordSupplyChainEvent(
@@ -138,9 +145,9 @@ func (c *Farm2ForkContract) RecordSupplyChainEvent(
 	actorID string,
 	actorRole string,
 	timestamp string,
-) (*model.BlockchainTransaction, error) {
+) (string, error) {
 	if err := requireTransactionContext(ctx); err != nil {
-		return nil, err
+		return "", err
 	}
 
 	tx := buildBaseTransaction(ctx, referenceID, referenceModel, "supply_chain_event", timestamp)
@@ -155,30 +162,55 @@ func (c *Farm2ForkContract) RecordSupplyChainEvent(
 	}
 
 	if err := persistTransaction(ctx, referenceID, tx); err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return tx, nil
+	bytes, err := json.Marshal(tx)
+	if err != nil {
+		return "", err
+	}
+
+	return string(bytes), nil
 }
 
 func (c *Farm2ForkContract) GetTransactionByReferenceId(
 	ctx contractapi.TransactionContextInterface,
 	referenceID string,
-) (*model.BlockchainTransaction, error) {
+) (string, error) {
 	if err := requireTransactionContext(ctx); err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return loadTransaction(ctx, referenceID)
+	tx, err := loadTransaction(ctx, referenceID)
+	if err != nil {
+		return "", err
+	}
+
+	bytes, err := json.Marshal(tx)
+	if err != nil {
+		return "", err
+	}
+
+	return string(bytes), nil
 }
 
 func (c *Farm2ForkContract) GetHistoryForKey(
 	ctx contractapi.TransactionContextInterface,
 	referenceID string,
-) ([]*model.BlockchainTransaction, error) {
+) (string, error) {
 	if err := requireTransactionContext(ctx); err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return loadHistory(ctx, referenceID)
+	history, err := loadHistory(ctx, referenceID)
+	if err != nil {
+		return "", err
+	}
+
+	bytes, err := json.Marshal(history)
+	if err != nil {
+		return "", err
+	}
+
+	return string(bytes), nil
 }

@@ -5,8 +5,8 @@ Farm2Fork local Hyperledger Fabric environment.
 ## Versions
 
 - Hyperledger Fabric: 3.1.4
-- Go support line: 1.22.x
-- Default pinned Go toolchain: 1.22.12 (see `.env.example`)
+- Go support line: 1.23.x
+- Default pinned Go toolchain: 1.23.0 (see `.env.example`)
 
 ## Network defaults
 
@@ -25,6 +25,10 @@ bash scripts/deploy-chaincode.sh
 bash scripts/smoke-test.sh
 bash scripts/network-down.sh
 ```
+
+`scripts/smoke-test.sh` resets the local Fabric network by default so it always tests
+the chaincode currently on disk. Set `SMOKE_RESET_NETWORK=false` if you need to
+preserve the current local ledger while running the smoke test.
 
 ## Limitations
 

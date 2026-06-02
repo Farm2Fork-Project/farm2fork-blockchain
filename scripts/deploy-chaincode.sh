@@ -7,41 +7,50 @@ source "${ROOT_DIR}/network/scripts/env.sh"
 bash "${ROOT_DIR}/scripts/network-up.sh"
 bash "${ROOT_DIR}/scripts/create-channel.sh"
 
-docker compose -f "${COMPOSE_FILE}" exec -T "${CLI_SERVICE}" bash -lc "
-  set -euo pipefail
-  rm -f '${CONTAINER_CHAINCODE_PACKAGE_FILE}'
+committed_definition="$(peer_cmd peer lifecycle chaincode querycommitted --channelID "${CHANNEL_NAME}" --name "${CHAINCODE_NAME}" 2>/dev/null || true)"
+if [[ "${committed_definition}" == *"Version: ${CHAINCODE_VERSION}, Sequence: ${CHAINCODE_SEQUENCE},"* ]]; then
+  echo "Chaincode ${CHAINCODE_NAME} ${CHAINCODE_VERSION} sequence ${CHAINCODE_SEQUENCE} is already committed on ${CHANNEL_NAME}; skipping lifecycle deployment"
+  exit 0
+fi
 
-  peer lifecycle chaincode package '${CONTAINER_CHAINCODE_PACKAGE_FILE}' \
-    --path '${CONTAINER_CHAINCODE_DIR}' \
-    --lang '${CHAINCODE_LANGUAGE}' \
-    --label '${CHAINCODE_LABEL}'
+if [ -n "${committed_definition}" ]; then
+  echo "Committed chaincode definition differs from requested ${CHAINCODE_VERSION} sequence ${CHAINCODE_SEQUENCE}; deploying requested definition"
+fi
 
-  peer lifecycle chaincode install '${CONTAINER_CHAINCODE_PACKAGE_FILE}'
+rm -f "${CHAINCODE_PACKAGE_FILE}"
 
-  PACKAGE_ID=\$(peer lifecycle chaincode queryinstalled | awk -F '[, ]+' '/${CHAINCODE_LABEL}/ {print \$3; exit}')
-  if [ -z \"\$PACKAGE_ID\" ]; then
-    echo 'Unable to determine chaincode package ID' >&2
-    exit 1
-  fi
+peer_host_cmd peer lifecycle chaincode package "${CHAINCODE_PACKAGE_FILE}" \
+  --path "${CHAINCODE_DIR}" \
+  --lang "${CHAINCODE_LANGUAGE}" \
+  --label "${CHAINCODE_LABEL}"
 
-  peer lifecycle chaincode approveformyorg \
-    -o '${ORDERER_ADMIN_ADDRESS}' \
-    --channelID '${CHANNEL_NAME}' \
-    --name '${CHAINCODE_NAME}' \
-    --version '${CHAINCODE_VERSION}' \
-    --package-id \"\$PACKAGE_ID\" \
-    --sequence '${CHAINCODE_SEQUENCE}' \
-    --tls \
-    --cafile '${CONTAINER_ORDERER_CA}'
+docker cp "${CHAINCODE_PACKAGE_FILE}" "${PEER_CONTAINER_NAME}:${CHAINCODE_CONTAINER_PACKAGE_FILE}"
 
-  peer lifecycle chaincode commit \
-    -o '${ORDERER_ADMIN_ADDRESS}' \
-    --channelID '${CHANNEL_NAME}' \
-    --name '${CHAINCODE_NAME}' \
-    --version '${CHAINCODE_VERSION}' \
-    --sequence '${CHAINCODE_SEQUENCE}' \
-    --peerAddresses 'peer0.farm2fork.com:7051' \
-    --tlsRootCertFiles '/etc/hyperledger/fabric/peerOrganizations/farm2fork.com/peers/peer0.farm2fork.com/tls/ca.crt' \
-    --tls \
-    --cafile '${CONTAINER_ORDERER_CA}'
-"
+peer_cmd peer lifecycle chaincode install "${CHAINCODE_CONTAINER_PACKAGE_FILE}" || true
+
+PACKAGE_ID="$(peer_cmd peer lifecycle chaincode queryinstalled | awk -F '[, ]+' "/${CHAINCODE_LABEL}/ {print \$3; exit}")"
+if [ -z "${PACKAGE_ID}" ]; then
+  echo "Unable to determine chaincode package ID" >&2
+  exit 1
+fi
+
+peer_cmd peer lifecycle chaincode approveformyorg \
+  -o "${ORDERER_ADDRESS}" \
+  --channelID "${CHANNEL_NAME}" \
+  --name "${CHAINCODE_NAME}" \
+  --version "${CHAINCODE_VERSION}" \
+  --package-id "${PACKAGE_ID}" \
+  --sequence "${CHAINCODE_SEQUENCE}" \
+  --tls \
+  --cafile "${ORDERER_CA_FILE}"
+
+peer_cmd peer lifecycle chaincode commit \
+  -o "${ORDERER_ADDRESS}" \
+  --channelID "${CHANNEL_NAME}" \
+  --name "${CHAINCODE_NAME}" \
+  --version "${CHAINCODE_VERSION}" \
+  --sequence "${CHAINCODE_SEQUENCE}" \
+  --peerAddresses 'peer0.farm2fork.com:7051' \
+  --tlsRootCertFiles "${PEER_TLS_CA_FILE}" \
+  --tls \
+  --cafile "${ORDERER_CA_FILE}"

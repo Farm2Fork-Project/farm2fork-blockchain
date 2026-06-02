@@ -11,11 +11,7 @@ compose() {
 }
 
 cleanup_generated_state() {
-  rm -rf "${ORGANIZATIONS_DIR}" "${CHANNEL_ARTIFACTS_DIR}"
-}
-
-run_cli() {
-  compose exec -T "${CLI_SERVICE}" "$@"
+  rm -rf "${ORGANIZATIONS_DIR}" "${CHANNEL_ARTIFACTS_DIR}" "${NETWORK_DIR}/system-genesis-block"
 }
 
 retry() {
@@ -34,26 +30,25 @@ retry() {
 }
 
 join_orderer_channel() {
-  run_cli osnadmin channel list \
-    --channelID "${CHANNEL_NAME}" \
-    -o "${ORDERER_ADMIN_ADDRESS}" \
-    --ca-file "${CONTAINER_ORDERER_CA}" \
-    --client-cert "${CONTAINER_ORDERER_ADMIN_TLS_SIGN_CERT}" \
-    --client-key "${CONTAINER_ORDERER_ADMIN_TLS_PRIVATE_KEY}" >/dev/null 2>&1 && return 0
+  local channel_status
 
-  run_cli osnadmin channel join \
+  channel_status="$(orderer_admin_cmd channel list \
     --channelID "${CHANNEL_NAME}" \
-    --config-block "${CONTAINER_CHANNEL_BLOCK_FILE}" \
-    -o "${ORDERER_ADMIN_ADDRESS}" \
-    --ca-file "${CONTAINER_ORDERER_CA}" \
-    --client-cert "${CONTAINER_ORDERER_ADMIN_TLS_SIGN_CERT}" \
-    --client-key "${CONTAINER_ORDERER_ADMIN_TLS_PRIVATE_KEY}"
+    2>/dev/null || true)"
+
+  if [[ "${channel_status}" == *"Status: 200"* ]]; then
+    return 0
+  fi
+
+  orderer_admin_cmd channel join \
+    --channelID "${CHANNEL_NAME}" \
+    --config-block "${CHANNEL_BLOCK_FILE}"
 }
 
 join_peer_channel() {
-  run_cli peer channel getinfo -c "${CHANNEL_NAME}" >/dev/null 2>&1 && return 0
+  peer_cmd peer channel getinfo -c "${CHANNEL_NAME}" >/dev/null 2>&1 && return 0
 
-  run_cli peer channel join -b "${CONTAINER_CHANNEL_BLOCK_FILE}"
+  peer_cmd peer channel join -b "${CHANNEL_BLOCK_FILE_CONTAINER}"
 }
 
 case "${ACTION}" in

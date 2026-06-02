@@ -5,3 +5,8 @@ network/organizations/ordererOrganizations/
 network/system-genesis-block/
 *.tar.gz
 *.log
+chaincode/farm2fork-chaincode/.gotmp/
+bin/
+builders/
+config/
+install-fabric.sh
