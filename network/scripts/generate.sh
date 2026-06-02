@@ -5,11 +5,18 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/env.sh"
 
 has_generated_state() {
-  [ -f "${CHANNEL_BLOCK_FILE}" ] || [ -e "${ORDERER_ADMIN_TLS_CERT_FILE}" ] || [ -e "${ORDERER_ADMIN_TLS_KEY_FILE}" ] || [ -d "${PEER_ADMIN_MSP_DIR}" ]
+  [ -f "${CHANNEL_BLOCK_FILE}" ] || [ -d "${ORDERER_ORGS_DIR}" ] || [ -d "${PEER_ORGS_DIR}" ]
 }
 
 has_complete_state() {
-  [ -f "${CHANNEL_BLOCK_FILE}" ] && [ -f "${ORDERER_ADMIN_TLS_CERT_FILE}" ] && [ -f "${ORDERER_ADMIN_TLS_KEY_FILE}" ] && [ -d "${PEER_ADMIN_MSP_DIR}" ]
+  [ -f "${CHANNEL_BLOCK_FILE}" ] &&
+    [ -d "${ORDERER_MSP_DIR}" ] &&
+    [ -d "${ORDERER_TLS_DIR}" ] &&
+    [ -f "${ORDERER_ADMIN_TLS_CERT_FILE}" ] &&
+    [ -f "${ORDERER_ADMIN_TLS_KEY_FILE}" ] &&
+    [ -d "${PEER_MSP_DIR}" ] &&
+    [ -d "${PEER_TLS_DIR}" ] &&
+    [ -d "${PEER_ADMIN_MSP_DIR}" ]
 }
 
 if has_complete_state; then

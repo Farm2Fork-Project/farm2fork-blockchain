@@ -63,6 +63,8 @@ case "${ACTION}" in
   up)
     bash "${SCRIPT_DIR}/generate.sh"
     compose up -d
+    ;;
+  channel)
     if [ ! -f "${CHANNEL_BLOCK_FILE}" ]; then
       echo "Missing channel block: ${CHANNEL_BLOCK_FILE}" >&2
       exit 1
@@ -81,7 +83,7 @@ case "${ACTION}" in
     compose config
     ;;
   *)
-    echo "Usage: $0 {generate|up|down|reset|config}" >&2
+    echo "Usage: $0 {generate|up|channel|down|reset|config}" >&2
     exit 1
     ;;
 esac

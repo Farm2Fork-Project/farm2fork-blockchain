@@ -77,6 +77,7 @@ services:
       - ../config:/etc/hyperledger/fabric/config
       - ../organizations:/etc/hyperledger/fabric
       - ../channel-artifacts:/opt/farm2fork/channel-artifacts
+      - ../chaincode:/opt/farm2fork/chaincode
 
 volumes:
   orderer.farm2fork.com:
