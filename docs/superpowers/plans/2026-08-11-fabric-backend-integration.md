@@ -531,7 +531,7 @@ git commit -m "feat: record shipment events per product"
 - Produces: A `BlockchainOutboxWorker.processNext(now?: Date)` operation that
   processes at most one atomically leased pending record.
 
-- [ ] **Step 1: Write failing worker tests with in-memory model fakes**
+- [x] **Step 1: Write failing worker tests with in-memory model fakes**
 
 Cover these deterministic cases in `blockchain-outbox.worker.spec.ts`:
 
@@ -570,13 +570,13 @@ it('fails permanently on a mapping conflict and schedules a transient retry', as
 });
 ```
 
-- [ ] **Step 2: Run the focused worker test and confirm it fails**
+- [x] **Step 2: Run the focused worker test and confirm it fails**
 
 Run: `pnpm test -- blockchain-outbox.worker.spec.ts --runInBand`
 
 Expected: FAIL because the worker and operational fields do not exist.
 
-- [ ] **Step 3: Extend only operational Mongo metadata**
+- [x] **Step 3: Extend only operational Mongo metadata**
 
 Add optional schema properties with indexes appropriate to leasing:
 
@@ -593,7 +593,7 @@ Add optional schema properties with indexes appropriate to leasing:
 Keep the existing payload and business identity fields immutable by convention;
 only the worker writes these operational fields plus status/Fabric metadata.
 
-- [ ] **Step 4: Implement atomic leasing and guarded finalization**
+- [x] **Step 4: Implement atomic leasing and guarded finalization**
 
 Use one `findOneAndUpdate` query with an `$and` of two `$or` clauses: eligible
 `nextAttemptAt` and absent/expired `leaseExpiresAt`. Set a UUID lease token,
@@ -611,17 +611,23 @@ Use explicit error codes such as `invalid_payload`, `ledger_conflict`,
 `fabric_validation`, and `fabric_unavailable`; truncate sanitized messages to a
 fixed small length. Do not persist raw PEM, gRPC metadata, or payload JSON.
 
-- [ ] **Step 5: Run worker and gateway unit tests plus the backend build**
+- [x] **Step 5: Run worker and gateway unit tests plus the backend build**
 
 Run: `pnpm test -- blockchain-outbox.worker.spec.ts fabric-gateway.service.spec.ts --runInBand`
 
 Expected: PASS.
 
+Runtime note (2026-08-11): `blockchain-outbox.worker.spec.ts` and
+`fabric-gateway.service.spec.ts` passed together (9 tests), and `pnpm run
+build` passed. The worker leases one eligible record at a time, checks Fabric
+by immutable outbox key before submitting, and records guarded confirmation,
+retry, or terminal failure metadata.
+
 Run: `pnpm run build`
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit the durable outbox worker core**
+- [x] **Step 6: Commit the durable outbox worker core**
 
 ```bash
 git add src/modules/blockchain/schemas/blockchain-transaction.schema.ts \
