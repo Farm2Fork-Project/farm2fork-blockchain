@@ -76,9 +76,16 @@ openssl x509 -req \
   -CAcreateserial \
   -out "${ORDERER_TLS_DIR}/server.crt" \
   -days 3650 \
+  -sha256 \
   -extfile "${ORDERER_TLS_WORKDIR}/openssl.cnf" \
   -extensions v3_req \
   >/dev/null 2>&1
+
+ORDERER_TLS_SIGNATURE_ALGORITHM="$(openssl x509 -in "${ORDERER_TLS_DIR}/server.crt" -noout -text | awk -F': ' '/Signature Algorithm:/{print $2; exit}')"
+if [ "${ORDERER_TLS_SIGNATURE_ALGORITHM}" != "ecdsa-with-SHA256" ]; then
+  echo "Expected orderer TLS certificate to use ecdsa-with-SHA256, got ${ORDERER_TLS_SIGNATURE_ALGORITHM:-unknown}." >&2
+  exit 1
+fi
 
 rm -f "${ORDERER_TLS_CA_CERT}.srl"
 

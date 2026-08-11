@@ -255,7 +255,7 @@ Add `rg` assertions for both distinct product IDs and the shared
 `farm2fork-fabric` Docker network, emits immutable outbox-key records, and is
 consumed only by the backend worker over gRPC/TLS.
 
-- [ ] **Step 5: Verify Compose shape and the full Fabric smoke flow**
+- [x] **Step 5: Verify Compose shape and the full Fabric smoke flow**
 
 Run: `docker compose --env-file .env.example -f network/compose/compose-net.yaml config`
 
@@ -266,9 +266,11 @@ Run: `SMOKE_RESET_NETWORK=true bash scripts/smoke-test.sh`
 Expected: PASS; queried records contain `product-apple`, `product-mango`, and
 the same shipment reference without overwriting either event.
 
-Runtime note (2026-08-11): shell syntax and rendered Compose configuration
-passed. The Fabric smoke flow is pending the host-side Fabric CLI download;
-Docker itself is available.
+Runtime note (2026-08-11): `go test ./... -count=1`, rendered Compose
+configuration, and the complete `SMOKE_RESET_NETWORK=true bash
+scripts/smoke-test.sh` flow passed. The network generates and verifies its
+orderer TLS leaf with SHA-256, and pre-pulls the matching Fabric chaincode
+builder image before starting containers.
 
 - [x] **Step 6: Commit the network and smoke update**
 
