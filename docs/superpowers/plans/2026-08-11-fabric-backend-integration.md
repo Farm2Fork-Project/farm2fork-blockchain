@@ -69,7 +69,7 @@
 - Consumes: The existing `model.BlockchainTransaction` shape and Fabric stub APIs.
 - Produces: `RecordPayment(ledgerKey, referenceID, ...)`, `RecordSupplyChainEvent(ledgerKey, referenceID, ...)`, `GetTransactionByLedgerKey(ledgerKey)`, `GetTransactionsByReference(referenceModel, referenceID)`, and `GetTransactionsByProductId(productID)`.
 
-- [ ] **Step 1: Add failing contract tests for the new identity behavior**
+- [x] **Step 1: Add failing contract tests for the new identity behavior**
 
 Replace the current reference-key assertions with tests shaped like:
 
@@ -128,13 +128,13 @@ func TestGetTransactionsByProductIdReturnsTwoShipmentEvents(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run the focused contract tests and confirm the intended failures**
+- [x] **Step 2: Run the focused contract tests and confirm the intended failures**
 
 Run: `go test ./chaincode/farm2fork-chaincode/internal/contract -run 'TestRecordSupplyChainEventKeeps|TestRecordSupplyChainEventReturns|TestRecordSupplyChainEventRejects|TestGetTransactionsByProductId' -count=1`
 
 Expected: compilation failures because the new signatures/query methods do not yet exist, or assertion failures because the current code stores by business reference.
 
-- [ ] **Step 3: Implement immutable-key persistence and idempotency helpers**
+- [x] **Step 3: Implement immutable-key persistence and idempotency helpers**
 
 In `contract.go`, replace the current `persistTransaction(ctx, referenceID, tx)` path with helpers that use the outbox key:
 
@@ -154,7 +154,7 @@ func ensureSameTransaction(existing, requested *model.BlockchainTransaction) err
 Use `ledgerKey` only for `GetState`/`PutState`; continue assigning the supplied
 business reference to `tx.ReferenceID`.
 
-- [ ] **Step 4: Add GoLevelDB-compatible indexes and queries**
+- [x] **Step 4: Add GoLevelDB-compatible indexes and queries**
 
 Create composite keys with explicit namespaces:
 
@@ -167,13 +167,15 @@ productIndexKey, err := ctx.GetStub().CreateCompositeKey(
 )
 ```
 
-Write empty index values with the immutable transaction. Implement query
+Write a non-empty sentinel index value such as `[]byte{1}` with the immutable
+transaction; an empty Fabric state value is treated as deletion by the test
+stub. Implement query
 methods using `GetStateByPartialCompositeKey`, `SplitCompositeKey`, and
 `loadTransactionByLedgerKey`; skip index values that no longer resolve and
 return a JSON array in deterministic iterator order. Only create the product
 index when `Payload.SupplyChain != nil`.
 
-- [ ] **Step 5: Run the focused tests and the complete Go package tests**
+- [x] **Step 5: Run the focused tests and the complete Go package tests**
 
 Run: `go test ./chaincode/farm2fork-chaincode/internal/contract -count=1`
 
@@ -184,7 +186,7 @@ Run: `go test ./chaincode/farm2fork-chaincode/... -count=1`
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit the chaincode identity and query change**
+- [x] **Step 6: Commit the chaincode identity and query change**
 
 ```bash
 git add chaincode/farm2fork-chaincode/internal/contract/contract.go \

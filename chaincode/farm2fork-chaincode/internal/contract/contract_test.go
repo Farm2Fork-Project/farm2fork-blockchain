@@ -88,6 +88,7 @@ func TestRecordPaymentPreservesExactMasterContextFieldNames(t *testing.T) {
 
 	payload, err := (&contract.Farm2ForkContract{}).RecordPayment(
 		ctx,
+		"outbox-payment-001",
 		"payment-001",
 		"order-001",
 		"buyer-001",
@@ -104,6 +105,9 @@ func TestRecordPaymentPreservesExactMasterContextFieldNames(t *testing.T) {
 	require.Equal(t, "payment", tx.Type)
 	require.Equal(t, "Payment", tx.ReferenceModel)
 	require.Equal(t, "payment-001", tx.ReferenceID)
+	stored, err := ctx.GetStub().GetState("outbox-payment-001")
+	require.NoError(t, err)
+	require.Contains(t, string(stored), `"referenceId":"payment-001"`)
 	require.Equal(t, "tx-payment-001", tx.TxHash)
 	require.Equal(t, uint64(0), tx.BlockNumber)
 	require.Equal(t, "farm2forkchannel", tx.ChannelName)
@@ -126,7 +130,8 @@ func TestRecordSupplyChainEventPreservesExactMasterContextFieldNames(t *testing.
 
 	payload, err := (&contract.Farm2ForkContract{}).RecordSupplyChainEvent(
 		ctx,
-		"product-001:event-001",
+		"outbox-product-001-event-001",
+		"product-001",
 		"Product",
 		"product-001",
 		"farmer-001",
@@ -142,7 +147,10 @@ func TestRecordSupplyChainEventPreservesExactMasterContextFieldNames(t *testing.
 	require.NoError(t, json.Unmarshal([]byte(payload), &tx))
 	require.Equal(t, "supply_chain_event", tx.Type)
 	require.Equal(t, "Product", tx.ReferenceModel)
-	require.Equal(t, "product-001:event-001", tx.ReferenceID)
+	require.Equal(t, "product-001", tx.ReferenceID)
+	stored, err := ctx.GetStub().GetState("outbox-product-001-event-001")
+	require.NoError(t, err)
+	require.Contains(t, string(stored), `"referenceId":"product-001"`)
 	require.Equal(t, "tx-supply-001", tx.TxHash)
 	require.Equal(t, uint64(0), tx.BlockNumber)
 	require.Equal(t, "farm2forkchannel", tx.ChannelName)
@@ -165,7 +173,8 @@ func TestGetTransactionByReferenceIdReturnsStoredRecord(t *testing.T) {
 
 	_, err := (&contract.Farm2ForkContract{}).RecordSupplyChainEvent(
 		ctx,
-		"product-002:event-001",
+		"outbox-product-002-event-001",
+		"product-002",
 		"Product",
 		"product-002",
 		"farmer-002",
@@ -177,11 +186,11 @@ func TestGetTransactionByReferenceIdReturnsStoredRecord(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	payload, err := (&contract.Farm2ForkContract{}).GetTransactionByReferenceId(ctx, "product-002:event-001")
+	payload, err := (&contract.Farm2ForkContract{}).GetTransactionByLedgerKey(ctx, "outbox-product-002-event-001")
 	require.NoError(t, err)
 	var tx contractmodel.BlockchainTransaction
 	require.NoError(t, json.Unmarshal([]byte(payload), &tx))
-	require.Equal(t, "product-002:event-001", tx.ReferenceID)
+	require.Equal(t, "product-002", tx.ReferenceID)
 	require.Equal(t, "product-002", tx.Payload.SupplyChain.ProductID)
 	require.Equal(t, "Multan", tx.Payload.SupplyChain.Location)
 }
@@ -191,7 +200,8 @@ func TestGetHistoryForKeyReturnsEntriesForStoredKey(t *testing.T) {
 
 	_, err := (&contract.Farm2ForkContract{}).RecordSupplyChainEvent(
 		ctx,
-		"product-003:event-001",
+		"outbox-product-003-event-001",
+		"product-003",
 		"Product",
 		"product-003",
 		"farmer-003",
@@ -203,11 +213,154 @@ func TestGetHistoryForKeyReturnsEntriesForStoredKey(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	payload, err := (&contract.Farm2ForkContract{}).GetHistoryForKey(ctx, "product-003:event-001")
+	payload, err := (&contract.Farm2ForkContract{}).GetHistoryForKey(ctx, "outbox-product-003-event-001")
 	require.NoError(t, err)
 	var history []contractmodel.BlockchainTransaction
 	require.NoError(t, json.Unmarshal([]byte(payload), &history))
 	require.Len(t, history, 1)
-	require.Equal(t, "product-003:event-001", history[0].ReferenceID)
+	require.Equal(t, "product-003", history[0].ReferenceID)
 	require.Equal(t, "product-003", history[0].Payload.SupplyChain.ProductID)
+}
+
+func TestRecordSupplyChainEventReturnsExistingValueForSameLedgerKey(t *testing.T) {
+	ctx := newMockTransactionContext("tx-shipment-001", "farm2forkchannel")
+	contract := &contract.Farm2ForkContract{}
+
+	first, err := contract.RecordSupplyChainEvent(
+		ctx,
+		"outbox-shipment-001-product-001",
+		"shipment-001",
+		"Shipment",
+		"product-001",
+		"farmer-001",
+		"shipment_assigned",
+		"Lahore, Punjab",
+		"transporter-001",
+		"transporter",
+		"2026-08-11T12:00:00Z",
+	)
+	require.NoError(t, err)
+
+	ctx.GetStub().(*historyTrackingStub).MockTransactionStart("tx-shipment-002")
+
+	second, err := contract.RecordSupplyChainEvent(
+		ctx,
+		"outbox-shipment-001-product-001",
+		"shipment-001",
+		"Shipment",
+		"product-001",
+		"farmer-001",
+		"shipment_assigned",
+		"Lahore, Punjab",
+		"transporter-001",
+		"transporter",
+		"2026-08-11T12:00:00Z",
+	)
+	require.NoError(t, err)
+	require.Equal(t, first, second)
+}
+
+func TestRecordSupplyChainEventRejectsDifferentPayloadForExistingLedgerKey(t *testing.T) {
+	ctx := newMockTransactionContext("tx-shipment-conflict-001", "farm2forkchannel")
+	contract := &contract.Farm2ForkContract{}
+
+	_, err := contract.RecordSupplyChainEvent(
+		ctx,
+		"outbox-shipment-001-product-001",
+		"shipment-001",
+		"Shipment",
+		"product-001",
+		"farmer-001",
+		"shipment_assigned",
+		"Lahore, Punjab",
+		"transporter-001",
+		"transporter",
+		"2026-08-11T12:00:00Z",
+	)
+	require.NoError(t, err)
+
+	_, err = contract.RecordSupplyChainEvent(
+		ctx,
+		"outbox-shipment-001-product-001",
+		"shipment-001",
+		"Shipment",
+		"product-002",
+		"farmer-001",
+		"shipment_assigned",
+		"Lahore, Punjab",
+		"transporter-001",
+		"transporter",
+		"2026-08-11T12:00:00Z",
+	)
+	require.ErrorContains(t, err, "different immutable content")
+}
+
+func TestGetTransactionsByReferenceReturnsEveryProductForShipment(t *testing.T) {
+	ctx := newMockTransactionContext("tx-shipment-index-001", "farm2forkchannel")
+	contract := &contract.Farm2ForkContract{}
+
+	for _, productID := range []string{"product-apple", "product-mango"} {
+		_, err := contract.RecordSupplyChainEvent(
+			ctx,
+			"outbox-shipment-001-"+productID,
+			"shipment-001",
+			"Shipment",
+			productID,
+			"farmer-001",
+			"shipment_assigned",
+			"Lahore, Punjab",
+			"transporter-001",
+			"transporter",
+			"2026-08-11T12:00:00Z",
+		)
+		require.NoError(t, err)
+	}
+
+	payload, err := contract.GetTransactionsByReference(ctx, "Shipment", "shipment-001")
+	require.NoError(t, err)
+	var records []contractmodel.BlockchainTransaction
+	require.NoError(t, json.Unmarshal([]byte(payload), &records))
+	require.Len(t, records, 2)
+	require.Equal(t, "product-apple", records[0].Payload.SupplyChain.ProductID)
+	require.Equal(t, "product-mango", records[1].Payload.SupplyChain.ProductID)
+}
+
+func TestGetTransactionsByProductIdReturnsOnlyMatchingShipmentEvents(t *testing.T) {
+	ctx := newMockTransactionContext("tx-product-index-001", "farm2forkchannel")
+	contract := &contract.Farm2ForkContract{}
+
+	for _, event := range []struct {
+		ledgerKey string
+		shipment  string
+		productID string
+		eventType string
+	}{
+		{"outbox-shipment-001-apple", "shipment-001", "product-apple", "shipment_assigned"},
+		{"outbox-shipment-001-mango", "shipment-001", "product-mango", "shipment_assigned"},
+		{"outbox-shipment-002-apple", "shipment-002", "product-apple", "shipment_in_transit"},
+	} {
+		_, err := contract.RecordSupplyChainEvent(
+			ctx,
+			event.ledgerKey,
+			event.shipment,
+			"Shipment",
+			event.productID,
+			"farmer-001",
+			event.eventType,
+			"Lahore, Punjab",
+			"transporter-001",
+			"transporter",
+			"2026-08-11T12:00:00Z",
+		)
+		require.NoError(t, err)
+	}
+
+	payload, err := contract.GetTransactionsByProductId(ctx, "product-apple")
+	require.NoError(t, err)
+	var records []contractmodel.BlockchainTransaction
+	require.NoError(t, json.Unmarshal([]byte(payload), &records))
+	require.Len(t, records, 2)
+	for _, record := range records {
+		require.Equal(t, "product-apple", record.Payload.SupplyChain.ProductID)
+	}
 }
