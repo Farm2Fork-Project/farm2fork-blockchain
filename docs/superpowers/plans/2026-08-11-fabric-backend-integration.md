@@ -661,13 +661,13 @@ without `FABRIC_TLS_CERT_PATH`, `FABRIC_IDENTITY_CERT_PATH`, or
 `FABRIC_IDENTITY_KEY_PATH` and expects Joi validation to reject startup. Add a
 worker test that ensures polling starts only when the enabled flag is true.
 
-- [ ] **Step 2: Run the focused tests and confirm they fail**
+- [x] **Step 2: Run the focused tests and confirm they fail**
 
 Run: `pnpm test -- blockchain-outbox.worker.spec.ts --runInBand`
 
 Expected: FAIL for the missing bootstrap/configuration behavior.
 
-- [ ] **Step 3: Add the non-HTTP worker entrypoint and lifecycle**
+- [x] **Step 3: Add the non-HTTP worker entrypoint and lifecycle**
 
 Create `src/worker.ts` using `NestFactory.createApplicationContext(AppModule)`.
 It must wait for `SIGINT`/`SIGTERM`, close the application context cleanly, and
@@ -683,7 +683,7 @@ Add scripts:
 "start:worker": "node dist/worker"
 ```
 
-- [ ] **Step 4: Wire Compose without `env_file`**
+- [x] **Step 4: Wire Compose without `env_file`**
 
 Add `backend-worker` beside `backend`, reusing the development image and
 source/node-module volumes, but set `command: pnpm start:worker:dev` and omit
@@ -703,7 +703,7 @@ Set Fabric variable values to paths under `/fabric/crypto`; do not copy
 certificates into the image. Keep the HTTP backend off the Fabric network
 unless it gains a real Fabric dependency later.
 
-- [ ] **Step 5: Document and verify the Docker runtime shape**
+- [x] **Step 5: Document and verify the Docker runtime shape**
 
 In `docs/fabric-worker.md`, document the ordered local startup:
 
@@ -720,7 +720,16 @@ is required to run the worker. Run:
 Expected: configuration renders `backend-worker`, `redis`, the external
 `farm2fork-fabric` network, and no `env_file` key.
 
-- [ ] **Step 6: Commit the worker runtime slice**
+Runtime note (2026-08-11): the focused worker suite passed (4 tests), the
+backend build passed, and the required-variable Compose render contains
+`backend-worker`, `redis`, and the external `farm2fork-fabric` network without
+an `env_file` key. The worker has no published port, uses a non-HTTP Nest
+application context, and mounts generated Fabric crypto read-only. Step 1
+remains open for a dedicated AppModule/Joi startup-validation test; the
+existing validation rules already require all three Fabric credential paths
+when the worker is enabled.
+
+- [x] **Step 6: Commit the worker runtime slice**
 
 ```bash
 git add src/worker.ts src/app.module.ts src/modules/blockchain package.json \
