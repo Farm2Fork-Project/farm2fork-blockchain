@@ -22,6 +22,8 @@ provider.
 - `farm2fork-backend` creates typed, pending Mongo outbox documents for a
   settled payment and for shipment claim/status events. It has no Fabric SDK
   client, submission worker, or retry implementation.
+- An order may contain multiple distinct products, but the existing checkout
+  rule keeps every order to one farmer. A shipment delivers that one order.
 - MongoDB is Atlas. Redis is local and Dockerized, but it is not the durable
   blockchain outbox.
 - The backend REST request that settles a payment, claims a shipment, or
@@ -38,7 +40,10 @@ provider.
 Shipment status events share a shipment `referenceId`. Writing every event
 under that key would overwrite the current Fabric state. Fabric history would
 retain old values, but it cannot provide exactly-once submission: retrying an
-uncertain request would append another indistinguishable history item.
+uncertain request would append another indistinguishable history item. The
+existing shipment outbox also has one record per shipment while its typed
+payload requires a `productId`; that is insufficient when an order contains
+multiple products.
 
 Each Mongo `BlockchainTransaction._id` is therefore the immutable Fabric
 ledger key. The business `referenceId` and `referenceModel` remain fields in
@@ -102,12 +107,31 @@ The contract stores the record at `ledgerKey` and stores the business reference
 inside its `referenceId` field. This preserves the master data contract and
 makes a unique ledger state entry for every outbox document.
 
+### Multiple Products Per Shipment
+
+For every shipment assignment or status transition, `TransportService` creates
+one supply-chain outbox document for each *distinct* `order.items[].productId`
+inside the same MongoDB transaction that updates the shipment and order.
+
+- Every generated record has the same `referenceModel = Shipment`, shipment
+  `referenceId`, event type, location, actor, and timestamp.
+- Each record has its own Mongo `_id` and therefore its own immutable Fabric
+  `ledgerKey`.
+- Each record carries exactly one `payload.supplyChain.productId`.
+- This keeps multi-product orders supported without mixing farmers. It does
+  not create one order across farmers, and it does not create one shipment per
+  product.
+
+Payment outbox creation remains one record per payment. Product-listing events
+remain one record per listed product when that producer is implemented.
+
 ### Idempotency and Queries
 
 `RecordPayment` and `RecordSupplyChainEvent` must first read `ledgerKey`.
 
-- If no value exists, the contract writes the immutable transaction and a
-  composite-key index for `referenceModel + referenceId`.
+- If no value exists, the contract writes the immutable transaction, a
+  composite-key index for `referenceModel + referenceId`, and, for a
+  supply-chain event, a second composite-key index for `productId`.
 - If the existing value has the same immutable business fields and payload,
   the contract returns that value unchanged. A retry is successful and does
   not create another Fabric transaction record.
@@ -120,11 +144,15 @@ The contract will expose:
 ```text
 GetTransactionByLedgerKey(ledgerKey)
 GetTransactionsByReference(referenceModel, referenceId)
+GetTransactionsByProductId(productId)
 ```
 
 `GetTransactionsByReference` iterates the composite-key index and loads each
 immutable record. It must work with the existing GoLevelDB development state
 database; no CouchDB or rich-query dependency is introduced.
+`GetTransactionsByProductId` uses the product index and gives a later
+traceability screen a complete timeline when a shipment contains several
+products.
 
 The legacy `GetTransactionByReferenceId` and `GetHistoryForKey` are replaced
 in the integration path. They may be retained only as documented compatibility
@@ -157,7 +185,7 @@ follows:
 | Mongo type | Chaincode transaction | Required arguments after identity |
 | --- | --- | --- |
 | `payment` | `RecordPayment` | `orderId`, `buyerId`, `farmerId`, `amount`, `currency`, `gateway`, `paidAt` |
-| `supply_chain_event` | `RecordSupplyChainEvent` | `referenceModel`, `productId`, `farmerId`, `eventType`, `location`, `actorId`, `actorRole`, `timestamp` |
+| `supply_chain_event` | `RecordSupplyChainEvent` | `referenceModel`, exactly one `productId`, `farmerId`, `eventType`, `location`, `actorId`, `actorRole`, `timestamp` |
 
 All IDs are serialized as strings, amounts use the exact stored numeric value,
 and dates are ISO-8601 UTC strings. A missing required field or unsupported
@@ -283,15 +311,16 @@ certificate contents, address/contact detail, or payment gateway references.
 The implementation must add focused checks before any UI work:
 
 1. Go contract tests prove unique ledger-key writes, idempotent repeat calls,
-   conflicting repeat rejection, and reference-index lookup for multiple
-   shipment events.
+   conflicting repeat rejection, reference-index lookup for multiple shipment
+   events, and product-index lookup for events from a multi-product shipment.
 2. Backend unit tests prove exact argument mapping, failure classification,
    lease-token ownership, retry scheduling, and recovery after a simulated
    committed-but-unrecorded submission.
 3. Backend database tests use concurrent workers to prove one lease owner
    processes a Mongo outbox record at a time.
-4. The blockchain smoke script submits one payment and multiple events for one
-   shipment, then queries both by immutable ledger key and business reference.
+4. The blockchain smoke script submits one payment and one event for each of
+   two products in one shipment, then queries them by immutable ledger key,
+   business reference, and product ID.
 5. A Docker integration smoke check starts Fabric, the backend API, local
    Redis, and `backend-worker`; it confirms an existing pending outbox record
    without any HTTP endpoint waiting for Fabric.
@@ -322,11 +351,12 @@ It deliberately excludes:
 ## Implementation Order
 
 1. Update and test the Go contract identity/index/query behavior, then update
-   the Fabric smoke script to use immutable ledger keys.
+   the Fabric smoke script to use immutable ledger keys and product lookups.
 2. Add backend configuration and the real Gateway client behind a narrow
    interface, with exact payload-mapping tests.
-3. Extend Mongo operational metadata and add the lease-based worker plus its
-   dedicated Docker service.
+3. Change shipment-event creation to fan out one typed record per distinct
+   product, then extend Mongo operational metadata and add the lease-based
+   worker plus its dedicated Docker service.
 4. Run contract, backend, and Docker/Fabric integration checks; then update the
    cross-repository progress tracker with verified results and remaining
    Atlas/manual smoke work.
