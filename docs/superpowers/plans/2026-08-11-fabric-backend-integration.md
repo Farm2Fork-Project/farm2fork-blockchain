@@ -422,7 +422,7 @@ git commit -m "feat: add Fabric gateway client"
 - Produces: One pending `BlockchainTransaction` for each distinct product ID at
   shipment assignment and every later shipment status transition.
 
-- [ ] **Step 1: Add failing transport unit tests for a two-product order**
+- [x] **Step 1: Add failing transport unit tests for a two-product order**
 
 Add a test that supplies an order with duplicated cart lines for `product-a`
 and one line for `product-b`, then asserts `blockchainModel.create` receives
@@ -451,14 +451,14 @@ expect(blockchainModel.create).toHaveBeenCalledWith(
 Repeat the assertion for `updateStatus`, including the same event type and
 timestamp across the two emitted records.
 
-- [ ] **Step 2: Run the targeted test and confirm it fails**
+- [x] **Step 2: Run the targeted test and confirm it fails**
 
 Run: `pnpm test -- transport.service.spec.ts --runInBand`
 
 Expected: FAIL because current transport code creates one record and omits
 `productId`.
 
-- [ ] **Step 3: Create transaction-safe fan-out records**
+- [x] **Step 3: Create transaction-safe fan-out records**
 
 Inside the existing Mongo session, derive product IDs without duplicate lines:
 
@@ -485,7 +485,7 @@ Extract this into one private helper used by both claim and status-transition
 paths so all shared values are identical. Do not alter the one-farmer order
 guard or create separate shipments.
 
-- [ ] **Step 4: Extend the replica-set e2e assertion**
+- [x] **Step 4: Extend the replica-set e2e assertion**
 
 Seed an order with two product IDs, perform a claim, then require two pending
 records with the same shipment `referenceId` and two distinct payload product
@@ -501,7 +501,14 @@ Run: `pnpm test:e2e --runInBand`
 
 Expected: PASS, including the multi-product shipment assertion.
 
-- [ ] **Step 6: Commit the product fan-out change**
+Runtime note (2026-08-11): `pnpm run build`, the focused transport unit suite
+(8 tests), and `test/shipment.e2e-spec.ts` (3 replica-set tests) passed. The
+full `pnpm test:e2e --runInBand` command still fails while loading the existing
+`app.e2e-spec.ts`: Jest cannot transform the ESM-only `@noble/curves` dependency
+loaded through the Fabric gateway runtime. That runner/configuration defect is
+outside the transport change, so this step remains open.
+
+- [x] **Step 6: Commit the product fan-out change**
 
 ```bash
 git add src/modules/transport/transport.service.ts \
