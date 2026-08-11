@@ -753,7 +753,7 @@ git commit -m "feat: run Fabric worker in Docker"
 - Produces: Evidence that two workers do not submit the same eligible Mongo
   outbox record concurrently, plus an accurate cross-repository status entry.
 
-- [ ] **Step 1: Write the concurrent-lease e2e test**
+- [x] **Step 1: Write the concurrent-lease e2e test**
 
 Follow `test/shipment.e2e-spec.ts`'s `MongoMemoryReplSet` setup. Seed one
 pending payment outbox record, create two worker instances sharing the same
@@ -771,14 +771,15 @@ expect(await blockchainModel.findById(outboxId).lean()).toMatchObject({
 Add a second test that first returns a ledger record from `findByLedgerKey` and
 asserts confirmation occurs without `submit`.
 
-- [ ] **Step 2: Run the e2e test and confirm the baseline failure**
+- [x] **Step 2: Run the e2e test against the existing worker behavior**
 
 Run: `pnpm test:e2e --runInBand --testPathPattern blockchain-outbox`
 
-Expected: FAIL until the worker is wired into the test module and claims are
-atomic.
+Runtime note (2026-08-11): the worker already had an atomic
+`findOneAndUpdate` lease implementation, so the new test correctly passed
+without a production-code change. A synthetic baseline failure was not created.
 
-- [ ] **Step 3: Complete test wiring and run focused verification**
+- [x] **Step 3: Complete test wiring and run focused verification**
 
 Use the same replica-set test configuration as payment/shipment e2e tests;
 inject a fake `FABRIC_GATEWAY_CLIENT` in the test module only. This is a test
@@ -791,6 +792,11 @@ Expected: PASS.
 Run: `pnpm test -- --runInBand`
 
 Expected: PASS.
+
+Runtime note (2026-08-11): `test/blockchain-outbox.e2e-spec.ts` passed both
+the concurrent claim and existing-ledger-key cases against
+`MongoMemoryReplSet`. The full unit suite passed (84 tests) with
+`CI=true pnpm exec jest --runInBand`, and `CI=true pnpm run build` passed.
 
 Run: `pnpm run build`
 
@@ -813,12 +819,15 @@ record. The commit-status block number was `6`. This validates the live
 Atlas-to-Fabric boundary, but this step remains open until the same path is
 exercised through the normal payment or shipment flow.
 
-- [ ] **Step 5: Commit the verification work**
+- [x] **Step 5: Commit the verification work**
 
 ```bash
 git add test/blockchain-outbox.e2e-spec.ts docs/fabric-worker.md
 git commit -m "test: verify Fabric outbox leases"
 ```
+
+Runtime note (2026-08-11): committed as `16d3ff5` on
+`feature/fabric-backend-integration`.
 
 - [x] **Step 6: Update the project tracker in its own repository commit**
 
@@ -833,6 +842,7 @@ Runtime note (2026-08-11): committed as `5f037ce` in
 `farm2fork-mobile` after the verified synthetic Atlas/Fabric smoke. The
 tracker records the focused 12-test suite, backend build, Compose shape,
 successful live boundary, and remaining full-e2e/normal-flow coverage gaps.
+Its Task 7 e2e update is committed separately after the replica-set tests.
 
 Commit only that tracker file on an appropriate local feature branch:
 
