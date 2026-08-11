@@ -208,7 +208,7 @@ git commit -m "feat: index immutable Fabric transaction records"
 - Produces: A stable Docker network named `farm2fork-fabric` and a smoke path
   that proves two product events can share one shipment reference.
 
-- [ ] **Step 1: Add failing smoke expectations for immutable keys and product lookup**
+- [x] **Step 1: Add failing smoke expectations for immutable keys and product lookup**
 
 Update `scripts/smoke-test.sh` to invoke these exact chaincode argument forms:
 
@@ -230,7 +230,7 @@ Expected: failure before the query checks because the current chaincode does
 not accept the new ledger-key argument layout. Stop containers with
 `bash scripts/network-down.sh` if the script exits before its own cleanup.
 
-- [ ] **Step 3: Name the Fabric Docker network explicitly**
+- [x] **Step 3: Name the Fabric Docker network explicitly**
 
 Append this network declaration to `network/compose/compose-net.yaml` and set
 the peer chaincode-container network mode to the same exact name:
@@ -248,7 +248,7 @@ networks:
 Do not use the generated `compose_default` name. The backend worker needs a
 stable external-network name.
 
-- [ ] **Step 4: Complete the smoke checks and document the integration boundary**
+- [x] **Step 4: Complete the smoke checks and document the integration boundary**
 
 Add `rg` assertions for both distinct product IDs and the shared
 `shipment-001` reference. Update `README.md` to state that Fabric now uses the
@@ -266,7 +266,11 @@ Run: `SMOKE_RESET_NETWORK=true bash scripts/smoke-test.sh`
 Expected: PASS; queried records contain `product-apple`, `product-mango`, and
 the same shipment reference without overwriting either event.
 
-- [ ] **Step 6: Commit the network and smoke update**
+Runtime note (2026-08-11): shell syntax and rendered Compose configuration
+passed. The Fabric smoke flow is pending the host-side Fabric CLI download;
+Docker itself is available.
+
+- [x] **Step 6: Commit the network and smoke update**
 
 ```bash
 git add network/compose/compose-net.yaml scripts/smoke-test.sh README.md

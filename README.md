@@ -13,7 +13,9 @@ Farm2Fork local Hyperledger Fabric environment.
 - Channel: `farm2forkchannel`
 - Orderer: `orderer.farm2fork.com`
 - Peer: `peer0.farm2fork.com`
-- History query: `GetHistoryForKey()`
+- Docker network: `farm2fork-fabric`
+- Immutable ledger key: backend `BlockchainTransaction._id`
+- Queries: `GetTransactionByLedgerKey`, `GetTransactionsByReference`, and `GetTransactionsByProductId`
 
 ## Full flow
 
@@ -34,5 +36,5 @@ preserve the current local ledger while running the smoke test.
 
 - Single-org only
 - No CouchDB
-- History uses `GetHistoryForKey()`
-- No backend SDK integration yet
+- Fabric is consumed by the backend worker over gRPC/TLS, never by an HTTP endpoint
+- The backend worker integration is implemented separately from this network setup
