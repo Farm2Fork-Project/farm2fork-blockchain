@@ -725,9 +725,11 @@ backend build passed, and the required-variable Compose render contains
 `backend-worker`, `redis`, and the external `farm2fork-fabric` network without
 an `env_file` key. The worker has no published port, uses a non-HTTP Nest
 application context, and mounts generated Fabric crypto read-only. Step 1
-remains open for a dedicated AppModule/Joi startup-validation test; the
-existing validation rules already require all three Fabric credential paths
-when the worker is enabled.
+remains open for a dedicated AppModule/Joi startup-validation test; a focused
+configuration regression test now proves that `BLOCKCHAIN_WORKER_ENABLED`
+resolves under the `blockchain.enabled` namespace. The existing validation
+rules already require all three Fabric credential paths when the worker is
+enabled.
 
 - [x] **Step 6: Commit the worker runtime slice**
 
@@ -802,6 +804,15 @@ normal payment/shipment flow, wait for `confirmed`, and query it by ledger key.
 Record the exact command and result in `docs/fabric-worker.md`. Do not claim
 this check passed if Atlas credentials or Docker Fabric are unavailable.
 
+Runtime note (2026-08-11): an approved direct synthetic outbox record (not a
+user order, payment, shipment, or product) was used because the normal payment
+flow was not part of the smoke request. With the real Atlas URL and local
+Fabric crypto mounted read-only, the worker confirmed the record and an
+independent `GetTransactionByLedgerKey` query returned the immutable payment
+record. The commit-status block number was `6`. This validates the live
+Atlas-to-Fabric boundary, but this step remains open until the same path is
+exercised through the normal payment or shipment flow.
+
 - [ ] **Step 5: Commit the verification work**
 
 ```bash
@@ -809,7 +820,7 @@ git add test/blockchain-outbox.e2e-spec.ts docs/fabric-worker.md
 git commit -m "test: verify Fabric outbox leases"
 ```
 
-- [ ] **Step 6: Update the project tracker in its own repository commit**
+- [x] **Step 6: Update the project tracker in its own repository commit**
 
 After only verified checks pass, update `farm2fork-mobile/PROGRESS.md` to note:
 
@@ -817,6 +828,11 @@ After only verified checks pass, update `farm2fork-mobile/PROGRESS.md` to note:
 - backend real gateway/worker commit(s);
 - exact unit/e2e/build/Docker-config outcomes; and
 - deferred user-owned Atlas + Docker Fabric smoke work, if still unrun.
+
+Runtime note (2026-08-11): committed as `5f037ce` in
+`farm2fork-mobile` after the verified synthetic Atlas/Fabric smoke. The
+tracker records the focused 12-test suite, backend build, Compose shape,
+successful live boundary, and remaining full-e2e/normal-flow coverage gaps.
 
 Commit only that tracker file on an appropriate local feature branch:
 
