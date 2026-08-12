@@ -295,6 +295,42 @@ func TestRecordSupplyChainEventRejectsDifferentPayloadForExistingLedgerKey(t *te
 	require.ErrorContains(t, err, "different immutable content")
 }
 
+func TestRecordSupplyChainEventRejectsInvalidEventWithoutWritingStateOrIndexes(t *testing.T) {
+	ctx := newMockTransactionContext("tx-invalid-supply-001", "farm2forkchannel")
+	ledgerKey := "outbox-shipment-invalid-product-001"
+
+	_, err := (&contract.Farm2ForkContract{}).RecordSupplyChainEvent(
+		ctx,
+		ledgerKey,
+		"shipment-001",
+		"Shipment",
+		"product-001",
+		"farmer-001",
+		"shipment_completed",
+		"Lahore, Punjab",
+		"transporter-001",
+		"transporter",
+		"2026-08-11T12:00:00Z",
+	)
+	require.ErrorContains(t, err, "reference model")
+
+	stored, err := ctx.GetStub().GetState(ledgerKey)
+	require.NoError(t, err)
+	require.Empty(t, stored)
+
+	referenceIndexKey, err := ctx.GetStub().CreateCompositeKey("f2f.reference", []string{"Shipment", "shipment-001", ledgerKey})
+	require.NoError(t, err)
+	referenceIndex, err := ctx.GetStub().GetState(referenceIndexKey)
+	require.NoError(t, err)
+	require.Empty(t, referenceIndex)
+
+	productIndexKey, err := ctx.GetStub().CreateCompositeKey("f2f.product", []string{"product-001", ledgerKey})
+	require.NoError(t, err)
+	productIndex, err := ctx.GetStub().GetState(productIndexKey)
+	require.NoError(t, err)
+	require.Empty(t, productIndex)
+}
+
 func TestGetTransactionsByReferenceReturnsEveryProductForShipment(t *testing.T) {
 	ctx := newMockTransactionContext("tx-shipment-index-001", "farm2forkchannel")
 	contract := &contract.Farm2ForkContract{}

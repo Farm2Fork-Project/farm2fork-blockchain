@@ -260,8 +260,7 @@ func (c *Farm2ForkContract) RecordSupplyChainEvent(
 		return "", err
 	}
 
-	tx := buildBaseTransaction(ctx, referenceID, referenceModel, "supply_chain_event", timestamp)
-	tx.Payload.SupplyChain = &model.SupplyChainPayload{
+	ledgerKey, referenceID, referenceModel, supplyChain, err := validateSupplyChainInput(ledgerKey, referenceID, referenceModel, model.SupplyChainPayload{
 		ProductID: productID,
 		FarmerID:  farmerID,
 		EventType: eventType,
@@ -269,7 +268,13 @@ func (c *Farm2ForkContract) RecordSupplyChainEvent(
 		ActorID:   actorID,
 		ActorRole: actorRole,
 		Timestamp: timestamp,
+	})
+	if err != nil {
+		return "", err
 	}
+
+	tx := buildBaseTransaction(ctx, referenceID, referenceModel, "supply_chain_event", supplyChain.Timestamp)
+	tx.Payload.SupplyChain = &supplyChain
 
 	existing, err := loadTransactionByLedgerKey(ctx, ledgerKey)
 	if err == nil {

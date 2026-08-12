@@ -79,3 +79,96 @@ func TestValidatePaymentInputRejectsInvalidValues(t *testing.T) {
 		})
 	}
 }
+
+func validSupplyChainPayload() model.SupplyChainPayload {
+	return model.SupplyChainPayload{
+		ProductID: "product-001",
+		FarmerID:  "farmer-001",
+		EventType: "listed",
+		Location:  "Lahore",
+		ActorID:   "farmer-001",
+		ActorRole: "farmer",
+		Timestamp: "2026-06-01T12:05:00Z",
+	}
+}
+
+func TestValidateSupplyChainInputNormalizesAllowedEvents(t *testing.T) {
+	tests := []struct {
+		name           string
+		referenceModel string
+		eventType      string
+		actorRole      string
+	}{
+		{name: "product listed by farmer", referenceModel: "Product", eventType: "listed", actorRole: "farmer"},
+		{name: "shipment assigned to transporter", referenceModel: "Shipment", eventType: "shipment_assigned", actorRole: "transporter"},
+		{name: "shipment picked up by transporter", referenceModel: "Shipment", eventType: "shipment_picked_up", actorRole: "transporter"},
+		{name: "shipment in transit by transporter", referenceModel: "Shipment", eventType: "shipment_in_transit", actorRole: "transporter"},
+		{name: "shipment delivered by transporter", referenceModel: "Shipment", eventType: "shipment_delivered", actorRole: "transporter"},
+		{name: "shipment failed by transporter", referenceModel: "Shipment", eventType: "shipment_failed", actorRole: "transporter"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			supplyChain := validSupplyChainPayload()
+			supplyChain.EventType = test.eventType
+			supplyChain.ActorRole = test.actorRole
+			supplyChain.Location = " Lahore "
+
+			ledgerKey, referenceID, referenceModel, normalized, err := validateSupplyChainInput(
+				" outbox-event-001 ",
+				" reference-001 ",
+				" "+test.referenceModel+" ",
+				supplyChain,
+			)
+
+			require.NoError(t, err)
+			require.Equal(t, "outbox-event-001", ledgerKey)
+			require.Equal(t, "reference-001", referenceID)
+			require.Equal(t, test.referenceModel, referenceModel)
+			require.Equal(t, "Lahore", normalized.Location)
+			require.Equal(t, test.eventType, normalized.EventType)
+			require.Equal(t, test.actorRole, normalized.ActorRole)
+		})
+	}
+}
+
+func TestValidateSupplyChainInputRejectsInvalidValues(t *testing.T) {
+	tests := []struct {
+		name           string
+		ledgerKey      string
+		referenceID    string
+		referenceModel string
+		mutate         func(*model.SupplyChainPayload)
+		expected       string
+	}{
+		{name: "blank ledger key", ledgerKey: " ", referenceID: "reference-001", referenceModel: "Product", expected: "ledger key"},
+		{name: "blank reference ID", ledgerKey: "outbox-event-001", referenceID: " ", referenceModel: "Product", expected: "reference ID"},
+		{name: "unknown reference model", ledgerKey: "outbox-event-001", referenceID: "reference-001", referenceModel: "Order", expected: "reference model"},
+		{name: "blank product ID", ledgerKey: "outbox-event-001", referenceID: "reference-001", referenceModel: "Product", mutate: func(payload *model.SupplyChainPayload) { payload.ProductID = " " }, expected: "product ID"},
+		{name: "blank farmer ID", ledgerKey: "outbox-event-001", referenceID: "reference-001", referenceModel: "Product", mutate: func(payload *model.SupplyChainPayload) { payload.FarmerID = " " }, expected: "farmer ID"},
+		{name: "blank event type", ledgerKey: "outbox-event-001", referenceID: "reference-001", referenceModel: "Product", mutate: func(payload *model.SupplyChainPayload) { payload.EventType = " " }, expected: "event type"},
+		{name: "blank location", ledgerKey: "outbox-event-001", referenceID: "reference-001", referenceModel: "Product", mutate: func(payload *model.SupplyChainPayload) { payload.Location = " " }, expected: "location"},
+		{name: "blank actor ID", ledgerKey: "outbox-event-001", referenceID: "reference-001", referenceModel: "Product", mutate: func(payload *model.SupplyChainPayload) { payload.ActorID = " " }, expected: "actor ID"},
+		{name: "blank actor role", ledgerKey: "outbox-event-001", referenceID: "reference-001", referenceModel: "Product", mutate: func(payload *model.SupplyChainPayload) { payload.ActorRole = " " }, expected: "actor role"},
+		{name: "malformed timestamp", ledgerKey: "outbox-event-001", referenceID: "reference-001", referenceModel: "Product", mutate: func(payload *model.SupplyChainPayload) { payload.Timestamp = "2026-06-01" }, expected: "timestamp"},
+		{name: "product event must be listed", ledgerKey: "outbox-event-001", referenceID: "reference-001", referenceModel: "Product", mutate: func(payload *model.SupplyChainPayload) { payload.EventType = "shipment_delivered" }, expected: "reference model"},
+		{name: "product event must use farmer role", ledgerKey: "outbox-event-001", referenceID: "reference-001", referenceModel: "Product", mutate: func(payload *model.SupplyChainPayload) { payload.ActorRole = "transporter" }, expected: "reference model"},
+		{name: "shipment event must use transporter role", ledgerKey: "outbox-event-001", referenceID: "reference-001", referenceModel: "Shipment", mutate: func(payload *model.SupplyChainPayload) {
+			payload.EventType = "shipment_delivered"
+			payload.ActorRole = "farmer"
+		}, expected: "reference model"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			supplyChain := validSupplyChainPayload()
+			if test.mutate != nil {
+				test.mutate(&supplyChain)
+			}
+
+			_, _, _, _, err := validateSupplyChainInput(test.ledgerKey, test.referenceID, test.referenceModel, supplyChain)
+
+			require.ErrorContains(t, err, test.expected)
+		})
+	}
+}
