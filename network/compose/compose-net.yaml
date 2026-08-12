@@ -43,7 +43,7 @@ services:
       - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
       - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
       - CORE_LEDGER_STATE_STATEDATABASE=goleveldb
-      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=compose_default
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=farm2fork-fabric
     ports:
       - "7051:7051"
     volumes:
@@ -58,3 +58,7 @@ services:
 volumes:
   orderer.farm2fork.com:
   peer0.farm2fork.com:
+
+networks:
+  default:
+    name: farm2fork-fabric

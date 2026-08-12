@@ -3,6 +3,7 @@ package contract
 import (
 	"encoding/json"
 	"errors"
+	"reflect"
 
 	contractapi "github.com/hyperledger/fabric-contract-api-go/contractapi"
 
@@ -10,6 +11,11 @@ import (
 )
 
 var errTransactionNotFound = errors.New("transaction not found")
+
+const (
+	referenceIndexObjectType = "f2f.reference"
+	productIndexObjectType   = "f2f.product"
+)
 
 type Farm2ForkContract struct {
 	contractapi.Contract
@@ -43,17 +49,44 @@ func buildBaseTransaction(
 	}
 }
 
-func persistTransaction(ctx contractapi.TransactionContextInterface, referenceID string, tx *model.BlockchainTransaction) error {
+func persistNewTransaction(ctx contractapi.TransactionContextInterface, ledgerKey string, tx *model.BlockchainTransaction) error {
 	bytes, err := json.Marshal(tx)
 	if err != nil {
 		return err
 	}
 
-	return ctx.GetStub().PutState(referenceID, bytes)
+	if err := ctx.GetStub().PutState(ledgerKey, bytes); err != nil {
+		return err
+	}
+
+	referenceIndexKey, err := ctx.GetStub().CreateCompositeKey(
+		referenceIndexObjectType,
+		[]string{tx.ReferenceModel, tx.ReferenceID, ledgerKey},
+	)
+	if err != nil {
+		return err
+	}
+	if err := ctx.GetStub().PutState(referenceIndexKey, []byte{1}); err != nil {
+		return err
+	}
+
+	if tx.Payload.SupplyChain == nil {
+		return nil
+	}
+
+	productIndexKey, err := ctx.GetStub().CreateCompositeKey(
+		productIndexObjectType,
+		[]string{tx.Payload.SupplyChain.ProductID, ledgerKey},
+	)
+	if err != nil {
+		return err
+	}
+
+	return ctx.GetStub().PutState(productIndexKey, []byte{1})
 }
 
-func loadTransaction(ctx contractapi.TransactionContextInterface, referenceID string) (*model.BlockchainTransaction, error) {
-	bytes, err := ctx.GetStub().GetState(referenceID)
+func loadTransactionByLedgerKey(ctx contractapi.TransactionContextInterface, ledgerKey string) (*model.BlockchainTransaction, error) {
+	bytes, err := ctx.GetStub().GetState(ledgerKey)
 	if err != nil {
 		return nil, err
 	}
@@ -67,6 +100,18 @@ func loadTransaction(ctx contractapi.TransactionContextInterface, referenceID st
 	}
 
 	return &tx, nil
+}
+
+func ensureSameImmutableTransaction(existing *model.BlockchainTransaction, requested *model.BlockchainTransaction) error {
+	if existing.Type != requested.Type ||
+		existing.ReferenceID != requested.ReferenceID ||
+		existing.ReferenceModel != requested.ReferenceModel ||
+		existing.CreatedAt != requested.CreatedAt ||
+		!reflect.DeepEqual(existing.Payload, requested.Payload) {
+		return errors.New("ledger key already exists with different immutable content")
+	}
+
+	return nil
 }
 
 func loadHistory(ctx contractapi.TransactionContextInterface, referenceID string) ([]*model.BlockchainTransaction, error) {
@@ -96,8 +141,50 @@ func loadHistory(ctx contractapi.TransactionContextInterface, referenceID string
 	return history, nil
 }
 
+func loadTransactionsForIndex(
+	ctx contractapi.TransactionContextInterface,
+	objectType string,
+	attributes []string,
+) ([]*model.BlockchainTransaction, error) {
+	iter, err := ctx.GetStub().GetStateByPartialCompositeKey(objectType, attributes)
+	if err != nil {
+		return nil, err
+	}
+	defer iter.Close()
+
+	transactions := make([]*model.BlockchainTransaction, 0)
+	for iter.HasNext() {
+		response, err := iter.Next()
+		if err != nil {
+			return nil, err
+		}
+
+		_, compositeKeys, err := ctx.GetStub().SplitCompositeKey(response.Key)
+		if err != nil {
+			return nil, err
+		}
+		if len(compositeKeys) == 0 {
+			continue
+		}
+
+		ledgerKey := compositeKeys[len(compositeKeys)-1]
+		tx, err := loadTransactionByLedgerKey(ctx, ledgerKey)
+		if errors.Is(err, errTransactionNotFound) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		transactions = append(transactions, tx)
+	}
+
+	return transactions, nil
+}
+
 func (c *Farm2ForkContract) RecordPayment(
 	ctx contractapi.TransactionContextInterface,
+	ledgerKey string,
 	referenceID string,
 	orderID string,
 	buyerID string,
@@ -111,8 +198,7 @@ func (c *Farm2ForkContract) RecordPayment(
 		return "", err
 	}
 
-	tx := buildBaseTransaction(ctx, referenceID, "Payment", "payment", paidAt)
-	tx.Payload.Payment = &model.PaymentPayload{
+	ledgerKey, referenceID, payment, err := validatePaymentInput(ledgerKey, referenceID, model.PaymentPayload{
 		OrderID:  orderID,
 		BuyerID:  buyerID,
 		FarmerID: farmerID,
@@ -120,9 +206,32 @@ func (c *Farm2ForkContract) RecordPayment(
 		Currency: currency,
 		Gateway:  gateway,
 		PaidAt:   paidAt,
+	})
+	if err != nil {
+		return "", err
 	}
 
-	if err := persistTransaction(ctx, referenceID, tx); err != nil {
+	tx := buildBaseTransaction(ctx, referenceID, "Payment", "payment", payment.PaidAt)
+	tx.Payload.Payment = &payment
+
+	existing, err := loadTransactionByLedgerKey(ctx, ledgerKey)
+	if err == nil {
+		if err := ensureSameImmutableTransaction(existing, tx); err != nil {
+			return "", err
+		}
+
+		bytes, err := json.Marshal(existing)
+		if err != nil {
+			return "", err
+		}
+
+		return string(bytes), nil
+	}
+	if !errors.Is(err, errTransactionNotFound) {
+		return "", err
+	}
+
+	if err := persistNewTransaction(ctx, ledgerKey, tx); err != nil {
 		return "", err
 	}
 
@@ -136,6 +245,7 @@ func (c *Farm2ForkContract) RecordPayment(
 
 func (c *Farm2ForkContract) RecordSupplyChainEvent(
 	ctx contractapi.TransactionContextInterface,
+	ledgerKey string,
 	referenceID string,
 	referenceModel string,
 	productID string,
@@ -150,8 +260,7 @@ func (c *Farm2ForkContract) RecordSupplyChainEvent(
 		return "", err
 	}
 
-	tx := buildBaseTransaction(ctx, referenceID, referenceModel, "supply_chain_event", timestamp)
-	tx.Payload.SupplyChain = &model.SupplyChainPayload{
+	ledgerKey, referenceID, referenceModel, supplyChain, err := validateSupplyChainInput(ledgerKey, referenceID, referenceModel, model.SupplyChainPayload{
 		ProductID: productID,
 		FarmerID:  farmerID,
 		EventType: eventType,
@@ -159,9 +268,32 @@ func (c *Farm2ForkContract) RecordSupplyChainEvent(
 		ActorID:   actorID,
 		ActorRole: actorRole,
 		Timestamp: timestamp,
+	})
+	if err != nil {
+		return "", err
 	}
 
-	if err := persistTransaction(ctx, referenceID, tx); err != nil {
+	tx := buildBaseTransaction(ctx, referenceID, referenceModel, "supply_chain_event", supplyChain.Timestamp)
+	tx.Payload.SupplyChain = &supplyChain
+
+	existing, err := loadTransactionByLedgerKey(ctx, ledgerKey)
+	if err == nil {
+		if err := ensureSameImmutableTransaction(existing, tx); err != nil {
+			return "", err
+		}
+
+		bytes, err := json.Marshal(existing)
+		if err != nil {
+			return "", err
+		}
+
+		return string(bytes), nil
+	}
+	if !errors.Is(err, errTransactionNotFound) {
+		return "", err
+	}
+
+	if err := persistNewTransaction(ctx, ledgerKey, tx); err != nil {
 		return "", err
 	}
 
@@ -173,20 +305,71 @@ func (c *Farm2ForkContract) RecordSupplyChainEvent(
 	return string(bytes), nil
 }
 
-func (c *Farm2ForkContract) GetTransactionByReferenceId(
+func (c *Farm2ForkContract) GetTransactionByLedgerKey(
 	ctx contractapi.TransactionContextInterface,
+	ledgerKey string,
+) (string, error) {
+	if err := requireTransactionContext(ctx); err != nil {
+		return "", err
+	}
+
+	tx, err := loadTransactionByLedgerKey(ctx, ledgerKey)
+	if err != nil {
+		return "", err
+	}
+
+	bytes, err := json.Marshal(tx)
+	if err != nil {
+		return "", err
+	}
+
+	return string(bytes), nil
+}
+
+func (c *Farm2ForkContract) GetTransactionsByReference(
+	ctx contractapi.TransactionContextInterface,
+	referenceModel string,
 	referenceID string,
 ) (string, error) {
 	if err := requireTransactionContext(ctx); err != nil {
 		return "", err
 	}
 
-	tx, err := loadTransaction(ctx, referenceID)
+	transactions, err := loadTransactionsForIndex(
+		ctx,
+		referenceIndexObjectType,
+		[]string{referenceModel, referenceID},
+	)
 	if err != nil {
 		return "", err
 	}
 
-	bytes, err := json.Marshal(tx)
+	bytes, err := json.Marshal(transactions)
+	if err != nil {
+		return "", err
+	}
+
+	return string(bytes), nil
+}
+
+func (c *Farm2ForkContract) GetTransactionsByProductId(
+	ctx contractapi.TransactionContextInterface,
+	productID string,
+) (string, error) {
+	if err := requireTransactionContext(ctx); err != nil {
+		return "", err
+	}
+
+	transactions, err := loadTransactionsForIndex(
+		ctx,
+		productIndexObjectType,
+		[]string{productID},
+	)
+	if err != nil {
+		return "", err
+	}
+
+	bytes, err := json.Marshal(transactions)
 	if err != nil {
 		return "", err
 	}

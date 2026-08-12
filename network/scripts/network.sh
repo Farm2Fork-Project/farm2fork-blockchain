@@ -10,6 +10,13 @@ compose() {
   docker compose -f "${COMPOSE_FILE}" "$@"
 }
 
+ensure_chaincode_builder_image() {
+  local builder_tag="${FABRIC_VERSION%.*}"
+  local builder_image="hyperledger/fabric-ccenv:${builder_tag}"
+
+  docker image inspect "${builder_image}" >/dev/null 2>&1 || docker pull "${builder_image}"
+}
+
 cleanup_generated_state() {
   rm -rf "${ORGANIZATIONS_DIR}" "${CHANNEL_ARTIFACTS_DIR}" "${NETWORK_DIR}/system-genesis-block"
 }
@@ -57,6 +64,7 @@ case "${ACTION}" in
     ;;
   up)
     bash "${SCRIPT_DIR}/generate.sh"
+    ensure_chaincode_builder_image
     compose up -d
     ;;
   channel)
