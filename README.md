@@ -32,6 +32,29 @@ bash scripts/network-down.sh
 the chaincode currently on disk. Set `SMOKE_RESET_NETWORK=false` if you need to
 preserve the current local ledger while running the smoke test.
 
+## Chaincode write validation
+
+Fabric validates every write before looking up an idempotency key or creating ledger
+state and composite indexes. The backend remains responsible for Firebase/JWT
+authentication and database ownership checks.
+
+`RecordPayment` requires non-empty ledger, payment, order, buyer, and farmer IDs; a
+finite positive amount; an uppercase three-letter currency code; either `stripe` or
+`jazzcash` as the gateway; and an RFC3339 `paidAt` timestamp.
+
+`RecordSupplyChainEvent` requires non-empty ledger, reference, product, farmer,
+location, actor, actor-role, and timestamp fields. Its RFC3339 timestamp and
+permitted event combinations are:
+
+| Reference model | Event type | Actor role |
+| --- | --- | --- |
+| `Product` | `listed` | `farmer` |
+| `Shipment` | `shipment_assigned` | `transporter` |
+| `Shipment` | `shipment_picked_up` | `transporter` |
+| `Shipment` | `shipment_in_transit` | `transporter` |
+| `Shipment` | `shipment_delivered` | `transporter` |
+| `Shipment` | `shipment_failed` | `transporter` |
+
 ## Limitations
 
 - Single-org only
