@@ -198,8 +198,7 @@ func (c *Farm2ForkContract) RecordPayment(
 		return "", err
 	}
 
-	tx := buildBaseTransaction(ctx, referenceID, "Payment", "payment", paidAt)
-	tx.Payload.Payment = &model.PaymentPayload{
+	ledgerKey, referenceID, payment, err := validatePaymentInput(ledgerKey, referenceID, model.PaymentPayload{
 		OrderID:  orderID,
 		BuyerID:  buyerID,
 		FarmerID: farmerID,
@@ -207,7 +206,13 @@ func (c *Farm2ForkContract) RecordPayment(
 		Currency: currency,
 		Gateway:  gateway,
 		PaidAt:   paidAt,
+	})
+	if err != nil {
+		return "", err
 	}
+
+	tx := buildBaseTransaction(ctx, referenceID, "Payment", "payment", payment.PaidAt)
+	tx.Payload.Payment = &payment
 
 	existing, err := loadTransactionByLedgerKey(ctx, ledgerKey)
 	if err == nil {
