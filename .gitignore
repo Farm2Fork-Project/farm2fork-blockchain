@@ -5,6 +5,7 @@ network/organizations/ordererOrganizations/
 network/system-genesis-block/
 *.tar.gz
 *.log
+benchmark/results/
 chaincode/farm2fork-chaincode/.gotmp/
 bin/
 builders/
