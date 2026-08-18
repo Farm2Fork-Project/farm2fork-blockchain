@@ -25,6 +25,7 @@ bash scripts/network-up.sh
 bash scripts/create-channel.sh
 bash scripts/deploy-chaincode.sh
 bash scripts/smoke-test.sh
+node scripts/benchmark.js --operations 20 --concurrency 1,5,10,20
 bash scripts/network-down.sh
 ```
 
@@ -54,6 +55,13 @@ permitted event combinations are:
 | `Shipment` | `shipment_in_transit` | `transporter` |
 | `Shipment` | `shipment_delivered` | `transporter` |
 | `Shipment` | `shipment_failed` | `transporter` |
+
+## Performance benchmark
+
+`node scripts/benchmark.js --operations 20 --concurrency 1,5,10,20` measures
+the deployed provenance-event writes and product-provenance query without
+resetting the network. See [docs/benchmark.md](docs/benchmark.md) for the exact
+paper-workload mapping, timing boundaries, and result retention rules.
 
 ## Limitations
 
