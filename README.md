@@ -40,8 +40,20 @@ state and composite indexes. The backend remains responsible for Firebase/JWT
 authentication and database ownership checks.
 
 `RecordPayment` requires non-empty ledger, payment, order, buyer, and farmer IDs; a
-finite positive amount; an uppercase three-letter currency code; either `stripe` or
-`jazzcash` as the gateway; and an RFC3339 `paidAt` timestamp.
+finite positive amount; an uppercase three-letter currency code; `stripe`, `jazzcash`, or `safepay` as the gateway; and an RFC3339 `paidAt` timestamp.
+
+Safepay uses the same immutable payment payload and ledger-key idempotency as
+the other gateways. Chaincode tests cover writing, querying, identical retries,
+and rejection of conflicting payment amounts. Run `go test ./... -count=1` from
+`chaincode/farm2fork-chaincode` to verify the contract.
+
+An already deployed network must upgrade its chaincode before it can accept
+Safepay records: update `CHAINCODE_LABEL`, `CHAINCODE_VERSION`, and
+`CHAINCODE_SEQUENCE` in the local `.env` for the next package/definition, then
+run `bash scripts/deploy-chaincode.sh`. Use the next sequence after the currently
+committed definition. Preserve the ledger; do not reset the network for this
+upgrade. Outbox records already marked `failed` do not automatically become
+pending when chaincode changes and need separate operator review before retry.
 
 `RecordSupplyChainEvent` requires non-empty ledger, reference, product, farmer,
 location, actor, actor-role, and timestamp fields. Its RFC3339 timestamp and

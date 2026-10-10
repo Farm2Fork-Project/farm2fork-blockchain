@@ -52,8 +52,8 @@ func validatePaymentInput(
 	}
 
 	payment.Gateway = strings.TrimSpace(payment.Gateway)
-	if payment.Gateway != "stripe" && payment.Gateway != "jazzcash" {
-		return "", "", model.PaymentPayload{}, errors.New("payment gateway must be stripe or jazzcash")
+	if payment.Gateway != "stripe" && payment.Gateway != "jazzcash" && payment.Gateway != "safepay" {
+		return "", "", model.PaymentPayload{}, errors.New("payment gateway must be stripe, jazzcash, or safepay")
 	}
 
 	payment.PaidAt = strings.TrimSpace(payment.PaidAt)

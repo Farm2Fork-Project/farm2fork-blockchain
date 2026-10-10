@@ -21,6 +21,18 @@ func validPaymentPayload() model.PaymentPayload {
 	}
 }
 
+func TestValidatePaymentInputSupportsBackendGateways(t *testing.T) {
+	for _, gateway := range []string{"stripe", "jazzcash", "safepay"} {
+		t.Run(gateway, func(t *testing.T) {
+			payment := validPaymentPayload()
+			payment.Gateway = " " + gateway + " "
+			_, _, normalized, err := validatePaymentInput("outbox-001", "payment-001", payment)
+			require.NoError(t, err)
+			require.Equal(t, gateway, normalized.Gateway)
+		})
+	}
+}
+
 func TestValidatePaymentInputNormalizesValidValues(t *testing.T) {
 	payment := validPaymentPayload()
 	payment.OrderID = " order-001 "

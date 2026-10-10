@@ -125,6 +125,36 @@ func TestRecordPaymentPreservesExactMasterContextFieldNames(t *testing.T) {
 	require.Equal(t, "2026-06-01T12:00:00Z", tx.Payload.Payment.PaidAt)
 }
 
+func TestSafepayPaymentRoundTripIsImmutableAndIdempotent(t *testing.T) {
+	ctx := newMockTransactionContext("tx-safepay-001", "farm2forkchannel")
+	cc := &contract.Farm2ForkContract{}
+	write := func(amount float64) (string, error) {
+		return cc.RecordPayment(ctx, "outbox-safepay-001", "payment-safepay-001",
+			"order-001", "buyer-001", "farmer-001", amount, "PKR", "safepay",
+			"2026-10-11T12:00:00Z")
+	}
+	first, err := write(1500)
+	require.NoError(t, err)
+	repeated, err := write(1500)
+	require.NoError(t, err)
+	require.Equal(t, first, repeated)
+
+	queried, err := cc.GetTransactionByLedgerKey(ctx, "outbox-safepay-001")
+	require.NoError(t, err)
+	require.Equal(t, first, queried)
+	var tx contractmodel.BlockchainTransaction
+	require.NoError(t, json.Unmarshal([]byte(queried), &tx))
+	require.Equal(t, "safepay", tx.Payload.Payment.Gateway)
+	require.Equal(t, "confirmed", tx.Status)
+	require.Equal(t, 1500.0, tx.Payload.Payment.Amount)
+
+	_, err = write(1600)
+	require.ErrorContains(t, err, "different immutable content")
+	unchanged, err := cc.GetTransactionByLedgerKey(ctx, "outbox-safepay-001")
+	require.NoError(t, err)
+	require.Equal(t, first, unchanged)
+}
+
 func TestRecordSupplyChainEventPreservesExactMasterContextFieldNames(t *testing.T) {
 	ctx := newMockTransactionContext("tx-supply-001", "farm2forkchannel")
 
