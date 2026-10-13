@@ -1,0 +1,95 @@
+name: CI and EC2 deployment
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: '1.26.0'
+          cache-dependency-path: chaincode/farm2fork-chaincode/go.sum
+      - name: Chaincode tests and vet
+        working-directory: chaincode/farm2fork-chaincode
+        run: |
+          go test ./... -count=1
+          go vet ./...
+
+  publish:
+    name: Publish immutable release
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    environment: production
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: '1.26.0'
+          cache-dependency-path: chaincode/farm2fork-chaincode/go.sum
+      - name: Package chaincode with pinned Fabric tools
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/fabric"
+          curl --fail --location --retry 3 https://github.com/hyperledger/fabric/releases/download/v3.1.4/hyperledger-fabric-linux-amd64-3.1.4.tar.gz -o "$RUNNER_TEMP/fabric.tar.gz"
+          tar -xzf "$RUNNER_TEMP/fabric.tar.gz" -C "$RUNNER_TEMP/fabric"
+          FABRIC_CFG_PATH="$RUNNER_TEMP/fabric/config" "$RUNNER_TEMP/fabric/bin/peer" lifecycle chaincode package chaincode.tar.gz --path chaincode/farm2fork-chaincode --lang golang --label "farm2fork-$SOURCE_SHA"
+      - name: Prepare manifest
+        run: python3 .github/scripts/publish-release.py blockchain --prepare
+      - name: Sign artifact and manifest provenance
+        id: provenance
+        uses: actions/attest-build-provenance@96b4a1ef7235a096b17240c259729fdd70c83d45 # v2
+        with:
+          subject-path: |
+            chaincode.tar.gz
+            manifest.json
+      - name: Preserve signed bundle
+        env:
+          BUNDLE_PATH: ${{ steps.provenance.outputs.bundle-path }}
+        run: cp "$BUNDLE_PATH" attestation.json
+      - name: Publish complete release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: python3 .github/scripts/publish-release.py blockchain
+
+  activate:
+    name: Verify EC2 activation
+    needs: publish
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Wait for EC2 readiness or rollback receipt
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: python3 .github/scripts/wait-for-deploy.py blockchain "$SOURCE_SHA"
