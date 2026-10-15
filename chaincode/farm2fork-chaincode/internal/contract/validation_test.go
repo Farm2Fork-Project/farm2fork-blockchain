@@ -117,6 +117,9 @@ func TestValidateSupplyChainInputNormalizesAllowedEvents(t *testing.T) {
 		{name: "shipment in transit by transporter", referenceModel: "Shipment", eventType: "shipment_in_transit", actorRole: "transporter"},
 		{name: "shipment delivered by transporter", referenceModel: "Shipment", eventType: "shipment_delivered", actorRole: "transporter"},
 		{name: "shipment failed by transporter", referenceModel: "Shipment", eventType: "shipment_failed", actorRole: "transporter"},
+		{name: "issue reported by transporter", referenceModel: "Shipment", eventType: "shipment_issue_reported", actorRole: "transporter"},
+		{name: "shipment reassigned by admin", referenceModel: "Shipment", eventType: "shipment_reassigned", actorRole: "admin"},
+		{name: "issue resolved by admin", referenceModel: "Shipment", eventType: "shipment_issue_resolved", actorRole: "admin"},
 	}
 
 	for _, test := range tests {
@@ -183,4 +186,13 @@ func TestValidateSupplyChainInputRejectsInvalidValues(t *testing.T) {
 			require.ErrorContains(t, err, test.expected)
 		})
 	}
+}
+
+func TestRecoveryEventsRejectWrongActors(t *testing.T) {
+	for _, event := range []string{"shipment_reassigned", "shipment_issue_resolved"} {
+		require.False(t, isAllowedSupplyChainEvent("Shipment", event, "transporter"))
+		require.False(t, isAllowedSupplyChainEvent("Product", event, "admin"))
+	}
+	require.False(t, isAllowedSupplyChainEvent("Shipment", "shipment_issue_reported", "admin"))
+	require.False(t, isAllowedSupplyChainEvent("Shipment", "shipment_delivered", "admin"))
 }

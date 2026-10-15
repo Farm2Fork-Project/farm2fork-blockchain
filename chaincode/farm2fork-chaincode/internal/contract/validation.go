@@ -134,9 +134,13 @@ func isAllowedSupplyChainEvent(referenceModel string, eventType string, actorRol
 
 	if referenceModel == "Shipment" && actorRole == "transporter" {
 		switch eventType {
-		case "shipment_assigned", "shipment_picked_up", "shipment_in_transit", "shipment_delivered", "shipment_failed":
+		case "shipment_assigned", "shipment_picked_up", "shipment_in_transit", "shipment_delivered", "shipment_failed", "shipment_issue_reported":
 			return true
 		}
+	}
+
+	if referenceModel == "Shipment" && actorRole == "admin" {
+		return eventType == "shipment_reassigned" || eventType == "shipment_issue_resolved"
 	}
 
 	return false

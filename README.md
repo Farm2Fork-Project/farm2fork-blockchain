@@ -67,6 +67,9 @@ permitted event combinations are:
 | `Shipment` | `shipment_in_transit` | `transporter` |
 | `Shipment` | `shipment_delivered` | `transporter` |
 | `Shipment` | `shipment_failed` | `transporter` |
+| `Shipment` | `shipment_issue_reported` | `transporter` |
+| `Shipment` | `shipment_reassigned` | `admin` |
+| `Shipment` | `shipment_issue_resolved` | `admin` |
 
 ## Performance benchmark
 
@@ -81,3 +84,7 @@ paper-workload mapping, timing boundaries, and result retention rules.
 - No CouchDB
 - Fabric is consumed by the backend worker over gRPC/TLS, never by an HTTP endpoint
 - The backend worker integration is implemented separately from this network setup
+
+### Delivery recovery compatibility
+
+The admin/transporter release adds the three recovery event types above. Upgrade chaincode validation before processing the matching backend outbox events. Existing ledger entries and event types remain valid; do not reset the ledger. Application role authorization and assignment/custody checks remain enforced by the backend. A local chaincode test is not evidence of a production upgrade or ledger readback.
